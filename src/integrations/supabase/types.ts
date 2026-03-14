@@ -14,16 +14,229 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inventory: {
+        Row: {
+          available_qty: number
+          created_at: string
+          id: string
+          item_name: string
+          min_stock_level: number
+          total_qty: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          available_qty?: number
+          created_at?: string
+          id?: string
+          item_name: string
+          min_stock_level?: number
+          total_qty?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          available_qty?: number
+          created_at?: string
+          id?: string
+          item_name?: string
+          min_stock_level?: number
+          total_qty?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      material_usage: {
+        Row: {
+          id: string
+          inventory_id: string
+          qty_used: number
+          recorded_at: string
+          recorded_by: string
+          task_id: string
+        }
+        Insert: {
+          id?: string
+          inventory_id: string
+          qty_used: number
+          recorded_at?: string
+          recorded_by: string
+          task_id: string
+        }
+        Update: {
+          id?: string
+          inventory_id?: string
+          qty_used?: number
+          recorded_at?: string
+          recorded_by?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_usage_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_usage_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          assigned_engineer_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_engineer_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_engineer_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sites: {
+        Row: {
+          created_at: string
+          engineer_id: string
+          id: string
+          location: string
+          name: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          engineer_id: string
+          id?: string
+          location: string
+          name: string
+          start_date?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          engineer_id?: string
+          id?: string
+          location?: string
+          name?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to: string
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          remarks: string | null
+          site_id: string
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to: string
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          remarks?: string | null
+          site_id: string
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          remarks?: string | null
+          site_id?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "engineer" | "supervisor"
+      task_status: "pending" | "in_progress" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +363,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "engineer", "supervisor"],
+      task_status: ["pending", "in_progress", "completed"],
+    },
   },
 } as const
