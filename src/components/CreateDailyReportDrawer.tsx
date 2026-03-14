@@ -106,6 +106,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
   const uploadPhotos = async (): Promise<string[]> => {
     if (photos.length === 0) return [];
 
+    // Ensure storage bucket exists
+    await supabase.functions.invoke('init-storage');
+
     const urls: string[] = [];
     const date = format(new Date(), 'yyyy-MM-dd');
 
