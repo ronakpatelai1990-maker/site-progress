@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_progress_reports: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          manpower: Json
+          materials_used: Json
+          report_date: string
+          site_id: string
+          updated_at: string
+          work_description: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          manpower?: Json
+          materials_used?: Json
+          report_date?: string
+          site_id: string
+          updated_at?: string
+          work_description: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          manpower?: Json
+          materials_used?: Json
+          report_date?: string
+          site_id?: string
+          updated_at?: string
+          work_description?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_progress_reports_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           available_qty: number
