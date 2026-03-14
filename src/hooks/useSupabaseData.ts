@@ -82,6 +82,39 @@ export function useRecordMaterialUsage() {
   });
 }
 
+export function useCreateSite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (site: TablesInsert<'sites'>) => {
+      const { error } = await supabase.from('sites').insert(site);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['sites'] }); },
+  });
+}
+
+export function useCreateTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (task: TablesInsert<'tasks'>) => {
+      const { error } = await supabase.from('tasks').insert(task);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tasks'] }); },
+  });
+}
+
+export function useCreateInventoryItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (item: TablesInsert<'inventory'>) => {
+      const { error } = await supabase.from('inventory').insert(item);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['inventory'] }); },
+  });
+}
+
 // Helper to get low stock items from already-fetched data
 export function getLowStockItems(items: InventoryItem[]) {
   return items.filter(i => i.available_qty < i.min_stock_level);

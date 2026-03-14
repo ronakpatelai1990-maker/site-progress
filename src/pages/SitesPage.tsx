@@ -2,20 +2,28 @@ import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { TaskCard } from '@/components/TaskCard';
 import { TaskDetailDrawer } from '@/components/TaskDetailDrawer';
+import { FAB } from '@/components/FAB';
+import { CreateSiteDrawer } from '@/components/CreateSiteDrawer';
+import { CreateTaskDrawer } from '@/components/CreateTaskDrawer';
+import { useAuth } from '@/hooks/useAuth';
 import { useSites, useTasks, useProfiles, useInventory, Task } from '@/hooks/useSupabaseData';
-import { MapPin, Calendar, User } from 'lucide-react';
+import { MapPin, Calendar, User, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function SitesPage() {
+  const { role } = useAuth();
   const { data: sites = [] } = useSites();
   const { data: tasks = [] } = useTasks();
   const { data: profiles = [] } = useProfiles();
   const { data: inventory = [] } = useInventory();
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showCreateSite, setShowCreateSite] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
 
   const siteTasks = selectedSite ? tasks.filter(t => t.site_id === selectedSite) : [];
   const site = selectedSite ? sites.find(s => s.id === selectedSite) : null;
+  const canCreate = role === 'admin' || role === 'engineer';
 
   return (
     <AppShell
@@ -85,6 +93,16 @@ export default function SitesPage() {
         </div>
       ) : (
         <div className="space-y-3">
+          {canCreate && (
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setShowCreateTask(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-accent/30 py-3 text-sm font-medium text-accent"
+            >
+              <Plus className="h-4 w-4" />
+              Add Task to {site?.name}
+            </motion.button>
+          )}
           {siteTasks.length === 0 ? (
             <div className="card-elevated flex items-center justify-center py-12">
               <p className="text-muted-foreground">No tasks for this site</p>
@@ -97,6 +115,8 @@ export default function SitesPage() {
         </div>
       )}
 
+      {canCreate && !selectedSite && <FAB onClick={() => setShowCreateSite(true)} label="Site" />}
+
       <TaskDetailDrawer
         task={selectedTask}
         sites={sites}
@@ -104,6 +124,20 @@ export default function SitesPage() {
         inventory={inventory}
         open={!!selectedTask}
         onOpenChange={(open) => !open && setSelectedTask(null)}
+      />
+
+      <CreateSiteDrawer
+        open={showCreateSite}
+        onOpenChange={setShowCreateSite}
+        profiles={profiles}
+      />
+
+      <CreateTaskDrawer
+        open={showCreateTask}
+        onOpenChange={setShowCreateTask}
+        sites={sites}
+        profiles={profiles}
+        defaultSiteId={selectedSite || undefined}
       />
     </AppShell>
   );

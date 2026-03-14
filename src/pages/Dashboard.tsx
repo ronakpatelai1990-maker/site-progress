@@ -4,6 +4,8 @@ import { AppShell } from '@/components/AppShell';
 import { StatCard } from '@/components/StatCard';
 import { TaskCard } from '@/components/TaskCard';
 import { TaskDetailDrawer } from '@/components/TaskDetailDrawer';
+import { FAB } from '@/components/FAB';
+import { CreateTaskDrawer } from '@/components/CreateTaskDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites, useTasks, useInventory, useProfiles, getLowStockItems, Task } from '@/hooks/useSupabaseData';
 import { MapPin, ClipboardList, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -16,6 +18,7 @@ export default function Dashboard() {
   const { data: inventory = [] } = useInventory();
   const { data: profiles = [] } = useProfiles();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showCreateTask, setShowCreateTask] = useState(false);
 
   const pendingTasks = tasks.filter(t => t.status !== 'completed');
   const completedTasks = tasks.filter(t => t.status === 'completed');
@@ -27,6 +30,7 @@ export default function Dashboard() {
     : pendingTasks;
 
   const firstName = profile?.name?.split(' ')[0] || 'there';
+  const canCreate = role === 'admin' || role === 'engineer';
 
   return (
     <AppShell
@@ -64,6 +68,8 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {canCreate && <FAB onClick={() => setShowCreateTask(true)} label="Task" />}
+
       <TaskDetailDrawer
         task={selectedTask}
         sites={sites}
@@ -71,6 +77,13 @@ export default function Dashboard() {
         inventory={inventory}
         open={!!selectedTask}
         onOpenChange={(open) => !open && setSelectedTask(null)}
+      />
+
+      <CreateTaskDrawer
+        open={showCreateTask}
+        onOpenChange={setShowCreateTask}
+        sites={sites}
+        profiles={profiles}
       />
     </AppShell>
   );
