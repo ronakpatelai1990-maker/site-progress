@@ -2,8 +2,9 @@ import { AppShell } from '@/components/AppShell';
 import { StockCard } from '@/components/StockCard';
 import { FAB } from '@/components/FAB';
 import { CreateInventoryDrawer } from '@/components/CreateInventoryDrawer';
+import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
 import { useAuth } from '@/hooks/useAuth';
-import { useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
+import { useInventory, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
@@ -14,10 +15,11 @@ export default function InventoryPage() {
   const { data: inventory = [] } = useInventory();
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 
   const lowStockItems = getLowStockItems(inventory);
   const items = filter === 'low' ? lowStockItems : inventory;
-  const canCreate = role === 'admin';
+  const canManage = role === 'admin';
 
   return (
     <AppShell
@@ -31,9 +33,7 @@ export default function InventoryPage() {
             whileTap={{ scale: 0.96 }}
             onClick={() => setFilter(key)}
             className={`min-h-[40px] rounded-lg px-4 text-sm font-medium transition-colors ${
-              filter === key
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-secondary-foreground'
+              filter === key ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
             }`}
           >
             {label}
@@ -43,7 +43,7 @@ export default function InventoryPage() {
 
       <div className="space-y-3">
         {items.map(item => (
-          <StockCard key={item.id} item={item} />
+          <StockCard key={item.id} item={item} onClick={canManage ? () => setEditingItem(item) : undefined} />
         ))}
         {items.length === 0 && (
           <div className="card-elevated flex items-center justify-center py-12">
@@ -52,12 +52,10 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {canCreate && <FAB onClick={() => setShowCreate(true)} label="Item" />}
+      {canManage && <FAB onClick={() => setShowCreate(true)} label="Item" />}
 
-      <CreateInventoryDrawer
-        open={showCreate}
-        onOpenChange={setShowCreate}
-      />
+      <CreateInventoryDrawer open={showCreate} onOpenChange={setShowCreate} />
+      <EditInventoryDrawer item={editingItem} open={!!editingItem} onOpenChange={(o) => !o && setEditingItem(null)} />
     </AppShell>
   );
 }

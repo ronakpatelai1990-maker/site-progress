@@ -5,9 +5,10 @@ import { TaskDetailDrawer } from '@/components/TaskDetailDrawer';
 import { FAB } from '@/components/FAB';
 import { CreateSiteDrawer } from '@/components/CreateSiteDrawer';
 import { CreateTaskDrawer } from '@/components/CreateTaskDrawer';
+import { EditSiteDrawer } from '@/components/EditSiteDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites, useTasks, useProfiles, useInventory, Task } from '@/hooks/useSupabaseData';
-import { MapPin, Calendar, User, Plus } from 'lucide-react';
+import { MapPin, Calendar, User, Plus, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function SitesPage() {
@@ -20,10 +21,13 @@ export default function SitesPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreateSite, setShowCreateSite] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [editingSite, setEditingSite] = useState<string | null>(null);
 
   const siteTasks = selectedSite ? tasks.filter(t => t.site_id === selectedSite) : [];
   const site = selectedSite ? sites.find(s => s.id === selectedSite) : null;
-  const canCreate = role === 'admin' || role === 'engineer';
+  const canEdit = role === 'admin' || role === 'engineer';
+
+  const editSiteObj = editingSite ? sites.find(s => s.id === editingSite) : null;
 
   return (
     <AppShell
@@ -31,13 +35,24 @@ export default function SitesPage() {
       subtitle={site ? site.location : `${sites.length} active sites`}
       action={
         selectedSite ? (
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setSelectedSite(null)}
-            className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground"
-          >
-            All Sites
-          </motion.button>
+          <div className="flex gap-1">
+            {canEdit && (
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => setEditingSite(selectedSite)}
+                className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </motion.button>
+            )}
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setSelectedSite(null)}
+              className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground"
+            >
+              All Sites
+            </motion.button>
+          </div>
         ) : undefined
       }
     >
@@ -49,40 +64,43 @@ export default function SitesPage() {
             const pending = tasks.filter(t => t.site_id === s.id && t.status !== 'completed').length;
 
             return (
-              <motion.button
-                key={s.id}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setSelectedSite(s.id)}
-                className="card-elevated w-full p-4 text-left"
-              >
-                <p className="text-body font-semibold text-foreground">{s.name}</p>
-                <div className="mt-2 space-y-1.5">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {s.location}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Started {s.start_date}
-                  </div>
-                  {engineer && (
+              <div key={s.id} className="relative">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setSelectedSite(s.id)}
+                  className="card-elevated w-full p-4 text-left"
+                >
+                  <p className="text-body font-semibold text-foreground">{s.name}</p>
+                  <div className="mt-2 space-y-1.5">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="h-3.5 w-3.5" />
-                      {engineer.name}
+                      <MapPin className="h-3.5 w-3.5" />{s.location}
                     </div>
-                  )}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                    {siteTaskCount} tasks
-                  </span>
-                  {pending > 0 && (
-                    <span className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                      {pending} pending
-                    </span>
-                  )}
-                </div>
-              </motion.button>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />Started {s.start_date}
+                    </div>
+                    {engineer && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <User className="h-3.5 w-3.5" />{engineer.name}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">{siteTaskCount} tasks</span>
+                    {pending > 0 && (
+                      <span className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">{pending} pending</span>
+                    )}
+                  </div>
+                </motion.button>
+                {canEdit && (
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => { e.stopPropagation(); setEditingSite(s.id); }}
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-muted-foreground"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </motion.button>
+                )}
+              </div>
             );
           })}
           {sites.length === 0 && (
@@ -93,14 +111,13 @@ export default function SitesPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {canCreate && (
+          {canEdit && (
             <motion.button
               whileTap={{ scale: 0.96 }}
               onClick={() => setShowCreateTask(true)}
               className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-accent/30 py-3 text-sm font-medium text-accent"
             >
-              <Plus className="h-4 w-4" />
-              Add Task to {site?.name}
+              <Plus className="h-4 w-4" />Add Task to {site?.name}
             </motion.button>
           )}
           {siteTasks.length === 0 ? (
@@ -115,29 +132,18 @@ export default function SitesPage() {
         </div>
       )}
 
-      {canCreate && !selectedSite && <FAB onClick={() => setShowCreateSite(true)} label="Site" />}
+      {canEdit && !selectedSite && <FAB onClick={() => setShowCreateSite(true)} label="Site" />}
 
       <TaskDetailDrawer
-        task={selectedTask}
-        sites={sites}
-        profiles={profiles}
-        inventory={inventory}
-        open={!!selectedTask}
-        onOpenChange={(open) => !open && setSelectedTask(null)}
+        task={selectedTask} sites={sites} profiles={profiles} inventory={inventory}
+        open={!!selectedTask} onOpenChange={(o) => !o && setSelectedTask(null)}
       />
-
-      <CreateSiteDrawer
-        open={showCreateSite}
-        onOpenChange={setShowCreateSite}
-        profiles={profiles}
-      />
-
-      <CreateTaskDrawer
-        open={showCreateTask}
-        onOpenChange={setShowCreateTask}
-        sites={sites}
-        profiles={profiles}
-        defaultSiteId={selectedSite || undefined}
+      <CreateSiteDrawer open={showCreateSite} onOpenChange={setShowCreateSite} profiles={profiles} />
+      <CreateTaskDrawer open={showCreateTask} onOpenChange={setShowCreateTask} sites={sites} profiles={profiles} defaultSiteId={selectedSite || undefined} />
+      <EditSiteDrawer
+        site={editSiteObj || null} profiles={profiles}
+        open={!!editingSite} onOpenChange={(o) => !o && setEditingSite(null)}
+        onDeleted={() => setSelectedSite(null)}
       />
     </AppShell>
   );
