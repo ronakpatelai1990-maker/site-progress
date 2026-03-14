@@ -1,15 +1,16 @@
-import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { StockCard } from '@/components/StockCard';
-import { inventory, getLowStockItems } from '@/data/mock';
+import { useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 type Filter = 'all' | 'low';
 
 export default function InventoryPage() {
+  const { data: inventory = [] } = useInventory();
   const [filter, setFilter] = useState<Filter>('all');
 
-  const lowStockItems = getLowStockItems();
+  const lowStockItems = getLowStockItems(inventory);
   const items = filter === 'low' ? lowStockItems : inventory;
 
   return (
@@ -17,7 +18,6 @@ export default function InventoryPage() {
       title="Stock Inventory"
       subtitle={`${inventory.length} items · ${lowStockItems.length} low stock`}
     >
-      {/* Filter tabs */}
       <div className="mb-4 flex gap-2">
         {([['all', 'All Items'], ['low', `Low Stock (${lowStockItems.length})`]] as const).map(([key, label]) => (
           <motion.button

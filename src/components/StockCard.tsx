@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
-import { InventoryItem } from '@/data/mock';
+import type { InventoryItem } from '@/hooks/useSupabaseData';
 
 interface StockCardProps {
   item: InventoryItem;
@@ -8,8 +8,8 @@ interface StockCardProps {
 }
 
 export function StockCard({ item, onClick }: StockCardProps) {
-  const isLow = item.availableQty < item.minStockLevel;
-  const percentage = Math.round((item.availableQty / item.totalQty) * 100);
+  const isLow = item.available_qty < item.min_stock_level;
+  const percentage = item.total_qty > 0 ? Math.round((item.available_qty / item.total_qty) * 100) : 0;
 
   return (
     <motion.button
@@ -19,12 +19,12 @@ export function StockCard({ item, onClick }: StockCardProps) {
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-body font-semibold text-foreground">{item.itemName}</p>
+          <p className="text-body font-semibold text-foreground">{item.item_name}</p>
           <div className="mt-1 flex items-center gap-2">
             <span className="tabular-nums text-2xl font-bold text-foreground">
-              {item.availableQty}
+              {item.available_qty}
             </span>
-            <span className="text-sm text-muted-foreground">/ {item.totalQty} {item.unit}</span>
+            <span className="text-sm text-muted-foreground">/ {item.total_qty} {item.unit}</span>
           </div>
         </div>
         {isLow && (
@@ -34,7 +34,6 @@ export function StockCard({ item, onClick }: StockCardProps) {
         )}
       </div>
 
-      {/* Progress bar */}
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
         <div
           className={`h-full rounded-full transition-all duration-300 ${
@@ -44,7 +43,7 @@ export function StockCard({ item, onClick }: StockCardProps) {
         />
       </div>
       <div className="mt-1.5 flex justify-between">
-        <span className="text-xs text-muted-foreground">Min: {item.minStockLevel} {item.unit}</span>
+        <span className="text-xs text-muted-foreground">Min: {item.min_stock_level} {item.unit}</span>
         <span className="text-xs font-medium text-muted-foreground">{percentage}%</span>
       </div>
     </motion.button>
