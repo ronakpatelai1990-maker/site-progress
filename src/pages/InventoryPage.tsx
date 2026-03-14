@@ -1,5 +1,8 @@
 import { AppShell } from '@/components/AppShell';
 import { StockCard } from '@/components/StockCard';
+import { FAB } from '@/components/FAB';
+import { CreateInventoryDrawer } from '@/components/CreateInventoryDrawer';
+import { useAuth } from '@/hooks/useAuth';
 import { useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -7,11 +10,14 @@ import { motion } from 'framer-motion';
 type Filter = 'all' | 'low';
 
 export default function InventoryPage() {
+  const { role } = useAuth();
   const { data: inventory = [] } = useInventory();
   const [filter, setFilter] = useState<Filter>('all');
+  const [showCreate, setShowCreate] = useState(false);
 
   const lowStockItems = getLowStockItems(inventory);
   const items = filter === 'low' ? lowStockItems : inventory;
+  const canCreate = role === 'admin';
 
   return (
     <AppShell
@@ -45,6 +51,13 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+
+      {canCreate && <FAB onClick={() => setShowCreate(true)} label="Item" />}
+
+      <CreateInventoryDrawer
+        open={showCreate}
+        onOpenChange={setShowCreate}
+      />
     </AppShell>
   );
 }
