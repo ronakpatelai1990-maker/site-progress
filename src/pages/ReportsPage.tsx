@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites, useTasks, useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
@@ -6,12 +6,16 @@ import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   PieChart, Pie, Cell,
-  ResponsiveContainer,
 } from 'recharts';
-import { AlertTriangle, BarChart3, PieChart as PieIcon, Package } from 'lucide-react';
+import { AlertTriangle, BarChart3, PieChart as PieIcon, Package, CalendarIcon, X } from 'lucide-react';
 
 const STATUS_COLORS = [
   'hsl(var(--warning))',
@@ -19,10 +23,11 @@ const STATUS_COLORS = [
   'hsl(var(--success))',
 ];
 
-const STOCK_COLORS = [
-  'hsl(var(--accent))',
-  'hsl(var(--destructive))',
-];
+const PRESET_RANGES = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+] as const;
 
 export default function ReportsPage() {
   const { role } = useAuth();
@@ -30,27 +35,53 @@ export default function ReportsPage() {
   const { data: tasks = [] } = useTasks();
   const { data: inventory = [] } = useInventory();
 
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [activePreset, setActivePreset] = useState<number | null>(null);
+
+  const setPreset = (days: number) => {
+    setDateFrom(subDays(new Date(), days));
+    setDateTo(new Date());
+    setActivePreset(days);
+  };
+
+  const clearFilter = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setActivePreset(null);
+  };
+
+  const filteredTasks = useMemo(() => {
+    if (!dateFrom && !dateTo) return tasks;
+    return tasks.filter(t => {
+      const created = new Date(t.created_at);
+      const start = dateFrom ? startOfDay(dateFrom) : new Date(0);
+      const end = dateTo ? endOfDay(dateTo) : new Date();
+      return isWithinInterval(created, { start, end });
+    });
+  }, [tasks, dateFrom, dateTo]);
+
   const tasksBySite = useMemo(() => {
     const map = new Map<string, { pending: number; in_progress: number; completed: number }>();
-    tasks.forEach(t => {
+    filteredTasks.forEach(t => {
       const site = sites.find(s => s.id === t.site_id);
       const name = site?.name || 'Unknown';
       if (!map.has(name)) map.set(name, { pending: 0, in_progress: 0, completed: 0 });
       map.get(name)![t.status]++;
     });
     return Array.from(map, ([name, counts]) => ({ name: name.length > 12 ? name.slice(0, 12) + '…' : name, ...counts }));
-  }, [tasks, sites]);
+  }, [filteredTasks, sites]);
 
   const taskStatusPie = useMemo(() => {
-    const pending = tasks.filter(t => t.status === 'pending').length;
-    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
+    const pending = filteredTasks.filter(t => t.status === 'pending').length;
+    const inProgress = filteredTasks.filter(t => t.status === 'in_progress').length;
+    const completed = filteredTasks.filter(t => t.status === 'completed').length;
     return [
       { name: 'Pending', value: pending },
       { name: 'In Progress', value: inProgress },
       { name: 'Completed', value: completed },
     ].filter(d => d.value > 0);
-  }, [tasks]);
+  }, [filteredTasks]);
 
   const stockData = useMemo(() => {
     return inventory
@@ -78,11 +109,79 @@ export default function ReportsPage() {
     used: { label: 'Used', color: 'hsl(var(--muted-foreground))' },
   };
 
-  // Only admin can view reports
   if (role !== 'admin') return <Navigate to="/" replace />;
+
+  const hasFilter = dateFrom || dateTo;
 
   return (
     <AppShell title="Reports" subtitle="Admin analytics">
+      {/* Date Range Filter */}
+      <div className="mb-4 space-y-2">
+        <div className="flex items-center gap-2">
+          {PRESET_RANGES.map(({ label, days }) => (
+            <Button
+              key={days}
+              size="sm"
+              variant={activePreset === days ? 'default' : 'outline'}
+              className="h-8 text-xs"
+              onClick={() => setPreset(days)}
+            >
+              {label}
+            </Button>
+          ))}
+          <div className="flex-1" />
+          {hasFilter && (
+            <Button size="sm" variant="ghost" className="h-8 text-xs gap-1 text-muted-foreground" onClick={clearFilter}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("h-9 flex-1 justify-start text-left text-xs font-normal", !dateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                {dateFrom ? format(dateFrom, 'MMM d, yyyy') : 'From'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={(d) => { setDateFrom(d); setActivePreset(null); }}
+                disabled={(d) => (dateTo ? d > dateTo : d > new Date())}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-xs text-muted-foreground">→</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("h-9 flex-1 justify-start text-left text-xs font-normal", !dateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                {dateTo ? format(dateTo, 'MMM d, yyyy') : 'To'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={(d) => { setDateTo(d); setActivePreset(null); }}
+                disabled={(d) => (dateFrom ? d < dateFrom : false) || d > new Date()}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        {hasFilter && (
+          <p className="text-xs text-muted-foreground">
+            Showing {filteredTasks.length} of {tasks.length} tasks
+          </p>
+        )}
+      </div>
+
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <div className="card-elevated p-3 text-center">
@@ -90,7 +189,7 @@ export default function ReportsPage() {
           <p className="label-meta mt-1">Sites</p>
         </div>
         <div className="card-elevated p-3 text-center">
-          <p className="text-2xl font-bold tabular-nums text-foreground">{tasks.length}</p>
+          <p className="text-2xl font-bold tabular-nums text-foreground">{filteredTasks.length}</p>
           <p className="label-meta mt-1">Tasks</p>
         </div>
         <div className="card-elevated p-3 text-center">
@@ -129,7 +228,7 @@ export default function ReportsPage() {
               </PieChart>
             </ChartContainer>
           ) : (
-            <p className="text-muted-foreground text-center py-8">No tasks yet</p>
+            <p className="text-muted-foreground text-center py-8">No tasks in this period</p>
           )}
         </CardContent>
       </Card>
