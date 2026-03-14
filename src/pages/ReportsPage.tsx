@@ -30,9 +30,6 @@ export default function ReportsPage() {
   const { data: tasks = [] } = useTasks();
   const { data: inventory = [] } = useInventory();
 
-  // Only admin can view reports
-  if (role !== 'admin') return <Navigate to="/" replace />;
-
   const tasksBySite = useMemo(() => {
     const map = new Map<string, { pending: number; in_progress: number; completed: number }>();
     tasks.forEach(t => {
