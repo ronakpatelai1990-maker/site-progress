@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { StockCard } from '@/components/StockCard';
-import { inventory, InventoryItem, getLowStockItems } from '@/data/mock';
+import { inventory, getLowStockItems } from '@/data/mock';
 import { motion } from 'framer-motion';
 
 type Filter = 'all' | 'low';
