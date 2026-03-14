@@ -11,7 +11,7 @@ interface TaskCardProps {
   showSite?: boolean;
 }
 
-export function TaskCard({ task, sites, profiles, onClick, showSite = true }: TaskCardProps) {
+export function TaskCard({ task, sites = [], profiles = [], onClick, showSite = true }: TaskCardProps) {
   const site = sites.find(s => s.id === task.site_id);
   const assignee = profiles.find(p => p.user_id === task.assigned_to);
 
