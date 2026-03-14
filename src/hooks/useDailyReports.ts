@@ -8,6 +8,7 @@ export interface DailyReport {
   work_description: string;
   manpower: unknown;
   materials_used: unknown;
+  photos: string[];
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,7 @@ export function useCreateDailyReport() {
       work_description: string;
       manpower: { role: string; count: number }[];
       materials_used: { inventory_id: string; qty_used: number; unit: string }[];
+      photos: string[];
       created_by: string;
     }) => {
       const { error } = await supabase
