@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
-import { Task, getSiteById, getUserById, inventory } from '@/data/mock';
 import { StatusBadge } from './StatusBadge';
 import { Stepper } from './Stepper';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,34 +7,57 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Calendar, User, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useUpdateTaskStatus, useRecordMaterialUsage } from '@/hooks/useSupabaseData';
+import type { Task, Site, Profile, InventoryItem } from '@/hooks/useSupabaseData';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
+  sites: Site[];
+  profiles: Profile[];
+  inventory: InventoryItem[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerProps) {
+export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpenChange }: TaskDetailDrawerProps) {
+  const { user } = useAuth();
+  const updateStatus = useUpdateTaskStatus();
+  const recordMaterial = useRecordMaterialUsage();
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [selectedItem, setSelectedItem] = useState('');
   const [qty, setQty] = useState(1);
 
   if (!task) return null;
 
-  const site = getSiteById(task.siteId);
-  const assignee = getUserById(task.assignedTo);
+  const site = sites.find(s => s.id === task.site_id);
+  const assignee = profiles.find(p => p.user_id === task.assigned_to);
   const selectedInventory = inventory.find(i => i.id === selectedItem);
 
   const handleRecordMaterial = () => {
-    if (!selectedItem) return;
-    toast.success(`Recorded ${qty} ${selectedInventory?.unit || 'units'} of ${selectedInventory?.itemName}`);
-    setShowMaterialForm(false);
-    setSelectedItem('');
-    setQty(1);
+    if (!selectedItem || !user) return;
+    recordMaterial.mutate(
+      { task_id: task.id, inventory_id: selectedItem, qty_used: qty, recorded_by: user.id },
+      {
+        onSuccess: () => {
+          toast.success(`Recorded ${qty} ${selectedInventory?.unit || 'units'} of ${selectedInventory?.item_name}`);
+          setShowMaterialForm(false);
+          setSelectedItem('');
+          setQty(1);
+        },
+        onError: (err) => toast.error(err.message),
+      }
+    );
   };
 
   const handleStatusChange = (newStatus: 'pending' | 'in_progress' | 'completed') => {
-    toast.success(`Task status updated to ${newStatus.replace('_', ' ')}`);
+    updateStatus.mutate(
+      { taskId: task.id, status: newStatus },
+      {
+        onSuccess: () => toast.success(`Task status updated to ${newStatus.replace('_', ' ')}`),
+        onError: (err) => toast.error(err.message),
+      }
+    );
   };
 
   return (
@@ -58,19 +80,20 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
                 <span className="text-body">{site.name} — {site.location}</span>
               </div>
             )}
-            <div className="flex items-center gap-3">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-body">Due: {task.deadline}</span>
-            </div>
+            {task.deadline && (
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-body">Due: {task.deadline}</span>
+              </div>
+            )}
             {assignee && (
               <div className="flex items-center gap-3">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-body">{assignee.name} ({assignee.role})</span>
+                <span className="text-body">{assignee.name}</span>
               </div>
             )}
           </div>
 
-          {/* Status Actions */}
           <div className="mt-6">
             <p className="label-meta mb-2">Update Status</p>
             <div className="grid grid-cols-3 gap-2">
@@ -91,7 +114,6 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
             </div>
           </div>
 
-          {/* Material Usage */}
           <div className="mt-6">
             {!showMaterialForm ? (
               <motion.button
@@ -105,7 +127,6 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
             ) : (
               <div className="card-elevated space-y-4 p-4">
                 <p className="label-meta">Record Material Usage</p>
-
                 <Select value={selectedItem} onValueChange={setSelectedItem}>
                   <SelectTrigger className="min-h-[48px]">
                     <SelectValue placeholder="Select material" />
@@ -113,7 +134,7 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
                   <SelectContent>
                     {inventory.map(item => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.itemName} ({item.availableQty} {item.unit} available)
+                        {item.item_name} ({item.available_qty} {item.unit} available)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -127,11 +148,10 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
                         value={qty}
                         onChange={setQty}
                         min={1}
-                        max={selectedInventory?.availableQty || 999}
+                        max={selectedInventory?.available_qty || 999}
                         unit={selectedInventory?.unit}
                       />
                     </div>
-
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -143,8 +163,9 @@ export function TaskDetailDrawer({ task, open, onOpenChange }: TaskDetailDrawerP
                       <Button
                         className="min-h-[48px] flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
                         onClick={handleRecordMaterial}
+                        disabled={recordMaterial.isPending}
                       >
-                        Record
+                        {recordMaterial.isPending ? 'Recording...' : 'Record'}
                       </Button>
                     </div>
                   </>
