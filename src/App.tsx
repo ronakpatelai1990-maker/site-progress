@@ -8,6 +8,7 @@ import SitesPage from "./pages/SitesPage";
 import InventoryPage from "./pages/InventoryPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportsPage from "./pages/ReportsPage";
+import DailyProgressPage from "./pages/DailyProgressPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
