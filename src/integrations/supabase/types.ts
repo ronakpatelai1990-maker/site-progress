@@ -21,6 +21,7 @@ export type Database = {
           id: string
           manpower: Json
           materials_used: Json
+          photos: string[]
           report_date: string
           site_id: string
           updated_at: string
@@ -32,6 +33,7 @@ export type Database = {
           id?: string
           manpower?: Json
           materials_used?: Json
+          photos?: string[]
           report_date?: string
           site_id: string
           updated_at?: string
@@ -43,6 +45,7 @@ export type Database = {
           id?: string
           manpower?: Json
           materials_used?: Json
+          photos?: string[]
           report_date?: string
           site_id?: string
           updated_at?: string

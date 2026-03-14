@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Camera, ImageIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateDailyReport } from '@/hooks/useDailyReports';
+import { supabase } from '@/integrations/supabase/client';
 import type { Site, InventoryItem } from '@/hooks/useSupabaseData';
 import { format } from 'date-fns';
 
@@ -21,28 +22,38 @@ interface Props {
 interface ManpowerEntry { role: string; count: number }
 interface MaterialEntry { inventory_id: string; qty_used: number; unit: string }
 
+interface PhotoPreview { file: File; preview: string }
+
 const DEFAULT_ROLES = ['Mason', 'Helper', 'Carpenter', 'Plumber', 'Electrician', 'Painter', 'Welder', 'Operator'];
 
 export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }: Props) {
   const { user } = useAuth();
   const createReport = useCreateDailyReport();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [siteId, setSiteId] = useState('');
   const [workDescription, setWorkDescription] = useState('');
   const [manpower, setManpower] = useState<ManpowerEntry[]>([{ role: '', count: 1 }]);
   const [materials, setMaterials] = useState<MaterialEntry[]>([]);
-  const [step, setStep] = useState(0); // 0: basics, 1: manpower, 2: materials
+  const [photos, setPhotos] = useState<PhotoPreview[]>([]);
+  const [step, setStep] = useState(0); // 0: basics, 1: manpower, 2: materials, 3: photos
+  const [uploading, setUploading] = useState(false);
 
   const reset = () => {
     setSiteId('');
     setWorkDescription('');
     setManpower([{ role: '', count: 1 }]);
     setMaterials([]);
+    setPhotos([]);
     setStep(0);
   };
 
   const handleClose = (o: boolean) => {
-    if (!o) reset();
+    if (!o) {
+      photos.forEach(p => URL.revokeObjectURL(p.preview));
+      reset();
+    }
     onOpenChange(o);
   };
 
@@ -72,34 +83,97 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
     setMaterials(updated);
   };
 
-  const handleSubmit = () => {
+  // Photo helpers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (photos.length + files.length > 5) {
+      toast.error('Maximum 5 photos allowed');
+      return;
+    }
+    const newPhotos = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setPhotos(prev => [...prev, ...newPhotos]);
+    e.target.value = '';
+  };
+
+  const removePhoto = (index: number) => {
+    URL.revokeObjectURL(photos[index].preview);
+    setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const uploadPhotos = async (): Promise<string[]> => {
+    if (photos.length === 0) return [];
+
+    // Ensure storage bucket exists
+    await supabase.functions.invoke('init-storage');
+
+    const urls: string[] = [];
+    const date = format(new Date(), 'yyyy-MM-dd');
+
+    for (const photo of photos) {
+      const ext = photo.file.name.split('.').pop() || 'jpg';
+      const path = `${user!.id}/${date}/${crypto.randomUUID()}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from('daily-report-photos')
+        .upload(path, photo.file, { contentType: photo.file.type, upsert: false });
+
+      if (error) throw new Error(`Upload failed: ${error.message}`);
+
+      const { data: urlData } = supabase.storage
+        .from('daily-report-photos')
+        .getPublicUrl(path);
+
+      urls.push(urlData.publicUrl);
+    }
+    return urls;
+  };
+
+  const handleSubmit = async () => {
     if (!siteId || !workDescription.trim()) {
       toast.error('Please fill in site and work description');
       return;
     }
-    const validManpower = manpower.filter(m => m.role.trim() && m.count > 0);
-    const validMaterials = materials.filter(m => m.inventory_id && m.qty_used > 0);
-
-    createReport.mutate(
-      {
-        site_id: siteId,
-        report_date: format(new Date(), 'yyyy-MM-dd'),
-        work_description: workDescription.trim(),
-        manpower: validManpower,
-        materials_used: validMaterials,
-        created_by: user!.id,
-      },
-      {
-        onSuccess: () => {
-          toast.success('Daily report submitted — stock updated');
-          handleClose(false);
-        },
-        onError: (err) => toast.error(err.message),
+    setUploading(true);
+    try {
+      let photoUrls: string[] = [];
+      if (photos.length > 0) {
+        photoUrls = await uploadPhotos();
       }
-    );
+
+      const validManpower = manpower.filter(m => m.role.trim() && m.count > 0);
+      const validMaterials = materials.filter(m => m.inventory_id && m.qty_used > 0);
+
+      await new Promise<void>((resolve, reject) => {
+        createReport.mutate(
+          {
+            site_id: siteId,
+            report_date: format(new Date(), 'yyyy-MM-dd'),
+            work_description: workDescription.trim(),
+            manpower: validManpower,
+            materials_used: validMaterials,
+            photos: photoUrls,
+            created_by: user!.id,
+          },
+          {
+            onSuccess: () => resolve(),
+            onError: (err) => reject(err),
+          }
+        );
+      });
+
+      toast.success('Daily report submitted — stock updated');
+      handleClose(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit report');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const stepTitles = ['Work Details', 'Manpower', 'Materials Used'];
+  const stepTitles = ['Work Details', 'Manpower', 'Materials Used', 'Site Photos'];
 
   return (
     <Drawer open={open} onOpenChange={handleClose}>
@@ -175,7 +249,7 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
           {step === 2 && (
             <div className="space-y-3">
               {materials.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No materials used? Skip to submit.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No materials used? Skip to next step.</p>
               )}
               {materials.map((m, i) => {
                 const item = inventory.find(inv => inv.id === m.inventory_id);
@@ -214,6 +288,62 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
               </Button>
             </div>
           )}
+
+          {/* Step 3: Photos */}
+          {step === 3 && (
+            <div className="space-y-3">
+              {photos.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No photos? Skip to submit.</p>
+              )}
+
+              {/* Photo grid */}
+              {photos.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((photo, i) => (
+                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-secondary">
+                      <img src={photo.preview} alt={`Site photo ${i + 1}`} className="h-full w-full object-cover" />
+                      <button
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/70 text-background"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {photos.length < 5 && (
+                <div className="flex gap-2">
+                  <Button variant="outline" className="min-h-[48px] flex-1" onClick={() => cameraInputRef.current?.click()}>
+                    <Camera className="mr-1.5 h-4 w-4" /> Camera
+                  </Button>
+                  <Button variant="outline" className="min-h-[48px] flex-1" onClick={() => fileInputRef.current?.click()}>
+                    <ImageIcon className="mr-1.5 h-4 w-4" /> Gallery
+                  </Button>
+                </div>
+              )}
+
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+
+              <p className="text-xs text-muted-foreground text-center">{photos.length}/5 photos</p>
+            </div>
+          )}
         </div>
 
         <DrawerFooter>
@@ -223,7 +353,7 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
             ) : (
               <Button variant="outline" className="min-h-[48px] flex-1" onClick={() => handleClose(false)}>Cancel</Button>
             )}
-            {step < 2 ? (
+            {step < 3 ? (
               <Button
                 className="min-h-[48px] flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
                 onClick={() => setStep(step + 1)}
@@ -235,9 +365,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
               <Button
                 className="min-h-[48px] flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
                 onClick={handleSubmit}
-                disabled={createReport.isPending}
+                disabled={uploading || createReport.isPending}
               >
-                {createReport.isPending ? 'Submitting...' : 'Submit Report'}
+                {uploading ? 'Uploading photos...' : createReport.isPending ? 'Submitting...' : 'Submit Report'}
               </Button>
             )}
           </div>

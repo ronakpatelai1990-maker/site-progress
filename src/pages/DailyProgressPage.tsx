@@ -3,11 +3,11 @@ import { format } from 'date-fns';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites, useInventory } from '@/hooks/useSupabaseData';
-import { useDailyReports, useCreateDailyReport } from '@/hooks/useDailyReports';
+import { useDailyReports } from '@/hooks/useDailyReports';
 import { CreateDailyReportDrawer } from '@/components/CreateDailyReportDrawer';
 import { FAB } from '@/components/FAB';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Users, Package, Calendar } from 'lucide-react';
+import { ClipboardList, Users, Package, Calendar, ImageIcon } from 'lucide-react';
 
 export default function DailyProgressPage() {
   const { role } = useAuth();
@@ -15,6 +15,7 @@ export default function DailyProgressPage() {
   const { data: inventory = [] } = useInventory();
   const { data: reports = [], isLoading } = useDailyReports();
   const [showCreate, setShowCreate] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const canCreate = role === 'admin' || role === 'engineer';
 
@@ -38,6 +39,7 @@ export default function DailyProgressPage() {
           {reports.map(report => {
             const manpower = (report.manpower as { role: string; count: number }[]) || [];
             const materials = (report.materials_used as { inventory_id: string; qty_used: number; unit: string }[]) || [];
+            const photos = report.photos || [];
             const totalWorkers = manpower.reduce((sum, m) => sum + m.count, 0);
 
             return (
@@ -95,6 +97,27 @@ export default function DailyProgressPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Photos */}
+                  {photos.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <ImageIcon className="h-3.5 w-3.5 text-accent" />
+                        <span className="label-meta">Photos ({photos.length})</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {photos.map((url, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setLightboxUrl(url)}
+                            className="aspect-square rounded-lg overflow-hidden bg-secondary"
+                          >
+                            <img src={url} alt={`Site photo ${i + 1}`} className="h-full w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -110,6 +133,16 @@ export default function DailyProgressPage() {
         sites={sites}
         inventory={inventory}
       />
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img src={lightboxUrl} alt="Site photo" className="max-h-[85vh] max-w-full rounded-lg object-contain" />
+        </div>
+      )}
     </AppShell>
   );
 }
