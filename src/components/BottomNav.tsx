@@ -1,14 +1,26 @@
-import { Home, MapPin, Package, User } from 'lucide-react';
+import { Home, MapPin, Package, User, BarChart3 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
-const navItems = [
+const baseNavItems = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/inventory', icon: Package, label: 'Stock' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
 
+const adminNavItems = [
+  { to: '/', icon: Home, label: 'Home' },
+  { to: '/sites', icon: MapPin, label: 'Sites' },
+  { to: '/inventory', icon: Package, label: 'Stock' },
+  { to: '/reports', icon: BarChart3, label: 'Reports' },
+  { to: '/profile', icon: User, label: 'Profile' },
+];
+
 export function BottomNav() {
+  const { role } = useAuth();
+  const navItems = role === 'admin' ? adminNavItems : baseNavItems;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background pb-safe">
       <div className="mx-auto flex max-w-lg items-center justify-around px-2">
