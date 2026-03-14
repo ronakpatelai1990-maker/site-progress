@@ -78,6 +78,9 @@ export default function ReportsPage() {
     used: { label: 'Used', color: 'hsl(var(--muted-foreground))' },
   };
 
+  // Only admin can view reports
+  if (role !== 'admin') return <Navigate to="/" replace />;
+
   return (
     <AppShell title="Reports" subtitle="Admin analytics">
       {/* Summary row */}
