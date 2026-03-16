@@ -39,50 +39,52 @@ export function AddEmployeeDrawer({ open, onOpenChange }: AddEmployeeDrawerProps
   };
 
   const handleAdd = async () => {
-    if (!name.trim()) return toast.error('Name is required');
-    if (!email.trim()) return toast.error('Email is required');
-    if (!password || password.length < 6) return toast.error('Password must be at least 6 characters');
+  if (!name.trim()) return toast.error('Name is required');
+  if (!email.trim()) return toast.error('Email is required');
+  if (!password || password.length < 6) return toast.error('Password must be at least 6 characters');
 
-    setSaving(true);
-    try {
-      // Step 1: Create auth user via admin API
-      const { data: newUser, error: signUpErr } = await supabase.auth.admin.createUser({
-        email: email.trim(),
-        password,
-        email_confirm: true,
-      });
+  setSaving(true);
+  try {
+    // Step 1: Sign up the new user
+    const { data, error: signUpErr } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { name: name.trim() },
+      },
+    });
 
-      if (signUpErr) throw signUpErr;
-      const userId = newUser.user?.id;
-      if (!userId) throw new Error('User creation failed');
+    if (signUpErr) throw signUpErr;
+    const userId = data.user?.id;
+    if (!userId) throw new Error('User creation failed');
 
-      // Step 2: Insert profile
-      const { error: profileErr } = await supabase.from('profiles').insert({
-        user_id: userId,
-        name: name.trim(),
-        phone: phone.trim() || null,
-        email: email.trim(),
-      });
-      if (profileErr) throw profileErr;
+    // Step 2: Insert profile
+    const { error: profileErr } = await supabase.from('profiles').insert({
+      user_id: userId,
+      name: name.trim(),
+      phone: phone.trim() || null,
+      email: email.trim(),
+    });
+    if (profileErr) throw profileErr;
 
-      // Step 3: Assign role
-      const { error: roleErr } = await supabase.from('user_roles').insert({
-        user_id: userId,
-        role,
-      });
-      if (roleErr) throw roleErr;
+    // Step 3: Assign role
+    const { error: roleErr } = await supabase.from('user_roles').insert({
+      user_id: userId,
+      role,
+    });
+    if (roleErr) throw roleErr;
 
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['user_roles'] });
-      toast.success(`${name} added as ${role}`);
-      reset();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add employee');
-    } finally {
-      setSaving(false);
-    }
-  };
+    queryClient.invalidateQueries({ queryKey: ['profiles'] });
+    queryClient.invalidateQueries({ queryKey: ['user_roles'] });
+    toast.success(`${name} added as ${role}`);
+    reset();
+    onOpenChange(false);
+  } catch (err: any) {
+    toast.error(err.message || 'Failed to add employee');
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Drawer open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
