@@ -62,10 +62,22 @@ export default function DailyProgressPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{getSiteName(report.site_id)}</CardTitle>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(report.report_date), 'dd MMM yyyy')}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {canManage && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditReport(report)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(report)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(report.report_date), 'dd MMM yyyy')}
+                      </span>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
