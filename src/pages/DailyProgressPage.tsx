@@ -18,10 +18,21 @@ export default function DailyProgressPage() {
   const { data: sites = [] } = useSites();
   const { data: inventory = [] } = useInventory();
   const { data: reports = [], isLoading } = useDailyReports();
+  const deleteReport = useDeleteDailyReport();
   const [showCreate, setShowCreate] = useState(false);
+  const [editReport, setEditReport] = useState<DailyReport | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const canCreate = role === 'admin' || role === 'engineer';
+  const canManage = role === 'admin' || role === 'engineer';
+
+  const handleDelete = (report: DailyReport) => {
+    if (!confirm('Delete this report? This cannot be undone.')) return;
+    deleteReport.mutate(report.id, {
+      onSuccess: () => toast.success('Report deleted'),
+      onError: (err: any) => toast.error(err.message || 'Failed to delete'),
+    });
+  };
 
   const getSiteName = (siteId: string) => sites.find(s => s.id === siteId)?.name || 'Unknown';
   const getItemName = (invId: string) => inventory.find(i => i.id === invId)?.item_name || 'Unknown';
