@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreateDailyReport } from '@/hooks/useDailyReports';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Site, InventoryItem } from '@/hooks/useSupabaseData';
 import { format } from 'date-fns';
 
@@ -21,39 +22,72 @@ interface Props {
 
 interface ManpowerEntry { role: string; count: number }
 interface MaterialEntry { inventory_id: string; qty_used: number; unit: string }
-
 interface PhotoPreview { file: File; preview: string }
 
 const DEFAULT_ROLES = ['Mason', 'Helper', 'Carpenter', 'Plumber', 'Electrician', 'Painter', 'Welder', 'Operator'];
 
+const ROOMS = [
+  { no: 1, name: 'Living Room' },
+  { no: 2, name: 'Kitchen' },
+  { no: 3, name: 'MB 1' },
+  { no: 4, name: 'MB1 Toilet' },
+  { no: 5, name: 'Powder Toilet' },
+  { no: 6, name: 'Staircase' },
+  { no: 7, name: 'MB 2' },
+  { no: 8, name: 'MB2 Toilet' },
+  { no: 9, name: 'MB 3' },
+  { no: 10, name: 'MB3 Toilet' },
+  { no: 11, name: 'MB 4' },
+  { no: 12, name: 'MB4 Toilet' },
+  { no: 13, name: 'Entertainment Room' },
+  { no: 14, name: 'Ent. Toilet' },
+  { no: 15, name: 'Passage' },
+  { no: 16, name: 'FF Balcony' },
+  { no: 17, name: 'SF Balcony' },
+  { no: 18, name: 'Gazzebo' },
+];
+
+// Site 1 has 18 bungalows, Site 2 has 14 — determined by site name
+const getBungalowCount = (sites: Site[], siteId: string) => {
+  const site = sites.find(s => s.id === siteId);
+  if (!site) return 18;
+  // Heuristic: if site name contains "2" or "second" use 14, else 18
+  const name = site.name.toLowerCase();
+  if (name.includes('2') || name.includes('second') || name.includes('two')) return 14;
+  return 18;
+};
+
 export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }: Props) {
   const { user } = useAuth();
   const createReport = useCreateDailyReport();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [siteId, setSiteId] = useState('');
+  const [bungalowNo, setBungalowNo] = useState('');
+  const [roomNo, setRoomNo] = useState('');
   const [workDescription, setWorkDescription] = useState('');
+  const [completionPct, setCompletionPct] = useState('');
   const [manpower, setManpower] = useState<ManpowerEntry[]>([{ role: '', count: 1 }]);
   const [materials, setMaterials] = useState<MaterialEntry[]>([]);
   const [photos, setPhotos] = useState<PhotoPreview[]>([]);
-  const [step, setStep] = useState(0); // 0: basics, 1: manpower, 2: materials, 3: photos
+  const [step, setStep] = useState(0);
   const [uploading, setUploading] = useState(false);
 
+  const bungalowCount = getBungalowCount(sites, siteId);
+  const bungalowOptions = Array.from({ length: bungalowCount }, (_, i) => i + 1);
+  const selectedRoom = ROOMS.find(r => r.no === Number(roomNo));
+
   const reset = () => {
-    setSiteId('');
-    setWorkDescription('');
+    setSiteId(''); setBungalowNo(''); setRoomNo('');
+    setWorkDescription(''); setCompletionPct('');
     setManpower([{ role: '', count: 1 }]);
-    setMaterials([]);
-    setPhotos([]);
-    setStep(0);
+    setMaterials([]); setPhotos([]); setStep(0);
   };
 
   const handleClose = (o: boolean) => {
-    if (!o) {
-      photos.forEach(p => URL.revokeObjectURL(p.preview));
-      reset();
-    }
+    if (!o) { photos.forEach(p => URL.revokeObjectURL(p.preview)); reset(); }
     onOpenChange(o);
   };
 
@@ -77,71 +111,64 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
       updated[i].inventory_id = value as string;
       const item = inventory.find(inv => inv.id === value);
       if (item) updated[i].unit = item.unit;
-    } else {
-      updated[i].unit = value as string;
-    }
+    } else updated[i].unit = value as string;
     setMaterials(updated);
   };
 
   // Photo helpers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (photos.length + files.length > 5) {
-      toast.error('Maximum 5 photos allowed');
-      return;
-    }
-    const newPhotos = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-    }));
-    setPhotos(prev => [...prev, ...newPhotos]);
+    if (photos.length + files.length > 5) { toast.error('Maximum 5 photos'); return; }
+    setPhotos(prev => [...prev, ...files.map(file => ({ file, preview: URL.createObjectURL(file) }))]);
     e.target.value = '';
   };
-
-  const removePhoto = (index: number) => {
-    URL.revokeObjectURL(photos[index].preview);
-    setPhotos(photos.filter((_, i) => i !== index));
-  };
+  const removePhoto = (i: number) => { URL.revokeObjectURL(photos[i].preview); setPhotos(photos.filter((_, idx) => idx !== i)); };
 
   const uploadPhotos = async (): Promise<string[]> => {
     if (photos.length === 0) return [];
-
-    // Ensure storage bucket exists
     await supabase.functions.invoke('init-storage');
-
     const urls: string[] = [];
     const date = format(new Date(), 'yyyy-MM-dd');
-
     for (const photo of photos) {
       const ext = photo.file.name.split('.').pop() || 'jpg';
       const path = `${user!.id}/${date}/${crypto.randomUUID()}.${ext}`;
-
-      const { error } = await supabase.storage
-        .from('daily-report-photos')
-        .upload(path, photo.file, { contentType: photo.file.type, upsert: false });
-
+      const { error } = await supabase.storage.from('daily-report-photos').upload(path, photo.file, { contentType: photo.file.type, upsert: false });
       if (error) throw new Error(`Upload failed: ${error.message}`);
-
-      const { data: urlData } = supabase.storage
-        .from('daily-report-photos')
-        .getPublicUrl(path);
-
+      const { data: urlData } = supabase.storage.from('daily-report-photos').getPublicUrl(path);
       urls.push(urlData.publicUrl);
     }
     return urls;
   };
 
+  // Auto deduct stock
+  const deductStock = async (validMaterials: MaterialEntry[]) => {
+    for (const mat of validMaterials) {
+      const item = inventory.find(inv => inv.id === mat.inventory_id);
+      if (!item) continue;
+      const newQty = Math.max(0, item.available_qty - mat.qty_used);
+      const { error } = await supabase
+        .from('inventory')
+        .update({ available_qty: newQty })
+        .eq('id', mat.inventory_id);
+      if (error) throw new Error(`Stock update failed: ${error.message}`);
+
+      // Warn if low stock after deduction
+      if (newQty < item.min_stock_level) {
+        toast.warning(`⚠️ Low stock: ${item.item_name} (${newQty} ${item.unit} remaining)`);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+  };
+
   const handleSubmit = async () => {
-    if (!siteId || !workDescription.trim()) {
-      toast.error('Please fill in site and work description');
+    if (!siteId || !bungalowNo || !roomNo || !workDescription.trim()) {
+      toast.error('Please fill in site, bungalow, room and work description');
       return;
     }
     setUploading(true);
     try {
       let photoUrls: string[] = [];
-      if (photos.length > 0) {
-        photoUrls = await uploadPhotos();
-      }
+      if (photos.length > 0) photoUrls = await uploadPhotos();
 
       const validManpower = manpower.filter(m => m.role.trim() && m.count > 0);
       const validMaterials = materials.filter(m => m.inventory_id && m.qty_used > 0);
@@ -151,20 +178,20 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
           {
             site_id: siteId,
             report_date: format(new Date(), 'yyyy-MM-dd'),
-            work_description: workDescription.trim(),
+            work_description: `Bungalow ${bungalowNo} | ${selectedRoom?.name || `Room ${roomNo}`} | ${workDescription.trim()}`,
             manpower: validManpower,
             materials_used: validMaterials,
             photos: photoUrls,
             created_by: user!.id,
           },
-          {
-            onSuccess: () => resolve(),
-            onError: (err) => reject(err),
-          }
+          { onSuccess: () => resolve(), onError: (err) => reject(err) }
         );
       });
 
-      toast.success('Daily report submitted — stock updated');
+      // Auto deduct stock
+      if (validMaterials.length > 0) await deductStock(validMaterials);
+
+      toast.success('Report submitted & stock updated ✅');
       handleClose(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit report');
@@ -173,7 +200,8 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
     }
   };
 
-  const stepTitles = ['Work Details', 'Manpower', 'Materials Used', 'Site Photos'];
+  const stepTitles = ['Location & Work', 'Manpower', 'Materials Used', 'Site Photos'];
+  const step0Valid = siteId && bungalowNo && roomNo && workDescription.trim();
 
   return (
     <Drawer open={open} onOpenChange={handleClose}>
@@ -188,28 +216,89 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
         </DrawerHeader>
 
         <div className="px-4 overflow-y-auto max-h-[60vh]">
-          {/* Step 0: Site & Work */}
+
+          {/* Step 0: Location & Work */}
           {step === 0 && (
             <div className="space-y-4">
+              {/* Site */}
               <div>
-                <label className="label-meta mb-1.5 block">Site</label>
-                <Select value={siteId} onValueChange={setSiteId}>
+                <label className="label-meta mb-1.5 block">Site *</label>
+                <Select value={siteId} onValueChange={v => { setSiteId(v); setBungalowNo(''); }}>
                   <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select site" /></SelectTrigger>
                   <SelectContent>
                     {sites.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="label-meta mb-1.5 block">Work Done Today</label>
-                <Textarea
-                  className="min-h-[120px]"
-                  value={workDescription}
-                  onChange={e => setWorkDescription(e.target.value)}
-                  placeholder="Describe the work completed today..."
-                  maxLength={2000}
-                />
-              </div>
+
+              {/* Bungalow No */}
+              {siteId && (
+                <div>
+                  <label className="label-meta mb-1.5 block">Bungalow No *</label>
+                  <Select value={bungalowNo} onValueChange={setBungalowNo}>
+                    <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select bungalow" /></SelectTrigger>
+                    <SelectContent>
+                      {bungalowOptions.map(n => (
+                        <SelectItem key={n} value={String(n)}>Bungalow {n}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Room No */}
+              {bungalowNo && (
+                <div>
+                  <label className="label-meta mb-1.5 block">Room *</label>
+                  <Select value={roomNo} onValueChange={setRoomNo}>
+                    <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select room" /></SelectTrigger>
+                    <SelectContent>
+                      {ROOMS.map(r => (
+                        <SelectItem key={r.no} value={String(r.no)}>{r.no}. {r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Work Done */}
+              {roomNo && (
+                <>
+                  <div>
+                    <label className="label-meta mb-1.5 block">Work Done Today *</label>
+                    <Textarea
+                      className="min-h-[100px]"
+                      value={workDescription}
+                      onChange={e => setWorkDescription(e.target.value)}
+                      placeholder={`Describe work done in ${selectedRoom?.name || 'this room'}...`}
+                      maxLength={2000}
+                    />
+                  </div>
+                  <div>
+                    <label className="label-meta mb-1.5 block">% Completion (optional)</label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        className="min-h-[48px] w-28"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={completionPct}
+                        onChange={e => setCompletionPct(e.target.value)}
+                        placeholder="0-100"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                      {completionPct && (
+                        <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full bg-accent rounded-full transition-all"
+                            style={{ width: `${Math.min(100, Number(completionPct))}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -280,6 +369,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                    {item && m.qty_used > 0 && m.qty_used > item.available_qty && (
+                      <p className="text-xs text-destructive">⚠️ Exceeds available stock ({item.available_qty} {item.unit})</p>
+                    )}
                   </div>
                 );
               })}
@@ -295,24 +387,18 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
               {photos.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No photos? Skip to submit.</p>
               )}
-
-              {/* Photo grid */}
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   {photos.map((photo, i) => (
                     <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-secondary">
-                      <img src={photo.preview} alt={`Site photo ${i + 1}`} className="h-full w-full object-cover" />
-                      <button
-                        onClick={() => removePhoto(i)}
-                        className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/70 text-background"
-                      >
+                      <img src={photo.preview} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+                      <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/70 text-background">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ))}
                 </div>
               )}
-
               {photos.length < 5 && (
                 <div className="flex gap-2">
                   <Button variant="outline" className="min-h-[48px] flex-1" onClick={() => cameraInputRef.current?.click()}>
@@ -323,24 +409,8 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                   </Button>
                 </div>
               )}
-
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
               <p className="text-xs text-muted-foreground text-center">{photos.length}/5 photos</p>
             </div>
           )}
@@ -357,7 +427,7 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
               <Button
                 className="min-h-[48px] flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
                 onClick={() => setStep(step + 1)}
-                disabled={step === 0 && (!siteId || !workDescription.trim())}
+                disabled={step === 0 && !step0Valid}
               >
                 Next
               </Button>
@@ -367,7 +437,7 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                 onClick={handleSubmit}
                 disabled={uploading || createReport.isPending}
               >
-                {uploading ? 'Uploading photos...' : createReport.isPending ? 'Submitting...' : 'Submit Report'}
+                {uploading ? 'Uploading...' : createReport.isPending ? 'Submitting...' : 'Submit Report'}
               </Button>
             )}
           </div>
