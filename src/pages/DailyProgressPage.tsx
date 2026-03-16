@@ -167,6 +167,7 @@ export default function DailyProgressPage() {
         report={editReport}
         sites={sites}
         inventory={inventory}
+      />
 
       {/* Lightbox */}
       {lightboxUrl && (
