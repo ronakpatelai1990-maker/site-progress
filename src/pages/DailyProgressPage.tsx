@@ -3,11 +3,15 @@ import { format } from 'date-fns';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites, useInventory } from '@/hooks/useSupabaseData';
-import { useDailyReports } from '@/hooks/useDailyReports';
+import { useDailyReports, useDeleteDailyReport } from '@/hooks/useDailyReports';
+import type { DailyReport } from '@/hooks/useDailyReports';
 import { CreateDailyReportDrawer } from '@/components/CreateDailyReportDrawer';
+import { EditDailyReportDrawer } from '@/components/EditDailyReportDrawer';
 import { FAB } from '@/components/FAB';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Users, Package, Calendar, ImageIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ClipboardList, Users, Package, Calendar, ImageIcon, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function DailyProgressPage() {
   const { role } = useAuth();
