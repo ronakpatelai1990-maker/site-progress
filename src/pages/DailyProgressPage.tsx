@@ -3,21 +3,36 @@ import { format } from 'date-fns';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites, useInventory } from '@/hooks/useSupabaseData';
-import { useDailyReports } from '@/hooks/useDailyReports';
+import { useDailyReports, useDeleteDailyReport } from '@/hooks/useDailyReports';
+import type { DailyReport } from '@/hooks/useDailyReports';
 import { CreateDailyReportDrawer } from '@/components/CreateDailyReportDrawer';
+import { EditDailyReportDrawer } from '@/components/EditDailyReportDrawer';
 import { FAB } from '@/components/FAB';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, Users, Package, Calendar, ImageIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ClipboardList, Users, Package, Calendar, ImageIcon, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function DailyProgressPage() {
   const { role } = useAuth();
   const { data: sites = [] } = useSites();
   const { data: inventory = [] } = useInventory();
   const { data: reports = [], isLoading } = useDailyReports();
+  const deleteReport = useDeleteDailyReport();
   const [showCreate, setShowCreate] = useState(false);
+  const [editReport, setEditReport] = useState<DailyReport | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const canCreate = role === 'admin' || role === 'engineer';
+  const canManage = role === 'admin' || role === 'engineer';
+
+  const handleDelete = (report: DailyReport) => {
+    if (!confirm('Delete this report? This cannot be undone.')) return;
+    deleteReport.mutate(report.id, {
+      onSuccess: () => toast.success('Report deleted'),
+      onError: (err: any) => toast.error(err.message || 'Failed to delete'),
+    });
+  };
 
   const getSiteName = (siteId: string) => sites.find(s => s.id === siteId)?.name || 'Unknown';
   const getItemName = (invId: string) => inventory.find(i => i.id === invId)?.item_name || 'Unknown';
@@ -47,10 +62,22 @@ export default function DailyProgressPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">{getSiteName(report.site_id)}</CardTitle>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(report.report_date), 'dd MMM yyyy')}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {canManage && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditReport(report)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(report)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(report.report_date), 'dd MMM yyyy')}
+                      </span>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -130,6 +157,14 @@ export default function DailyProgressPage() {
       <CreateDailyReportDrawer
         open={showCreate}
         onOpenChange={setShowCreate}
+        sites={sites}
+        inventory={inventory}
+      />
+
+      <EditDailyReportDrawer
+        open={!!editReport}
+        onOpenChange={(o) => { if (!o) setEditReport(null); }}
+        report={editReport}
         sites={sites}
         inventory={inventory}
       />

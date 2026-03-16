@@ -53,3 +53,44 @@ export function useCreateDailyReport() {
     },
   });
 }
+
+export function useUpdateDailyReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (report: {
+      id: string;
+      site_id?: string;
+      work_description?: string;
+      manpower?: { role: string; count: number }[];
+      materials_used?: { inventory_id: string; qty_used: number; unit: string }[];
+    }) => {
+      const { id, ...updates } = report;
+      const { error } = await supabase
+        .from('daily_progress_reports' as any)
+        .update(updates as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily_reports'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
+
+export function useDeleteDailyReport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('daily_progress_reports' as any)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['daily_reports'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
+}
