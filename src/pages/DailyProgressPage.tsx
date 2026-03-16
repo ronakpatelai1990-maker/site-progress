@@ -161,6 +161,13 @@ export default function DailyProgressPage() {
         inventory={inventory}
       />
 
+      <EditDailyReportDrawer
+        open={!!editReport}
+        onOpenChange={(o) => { if (!o) setEditReport(null); }}
+        report={editReport}
+        sites={sites}
+        inventory={inventory}
+
       {/* Lightbox */}
       {lightboxUrl && (
         <div
