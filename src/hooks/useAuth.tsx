@@ -32,22 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchProfileAndRole = async (userId: string) => {
+      const [profileRes, roleRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('user_id', userId).single(),
+        supabase.from('user_roles').select('role').eq('user_id', userId).single(),
+      ]);
+      setProfile(profileRes.data);
+      setRole(roleRes.data?.role ?? null);
+      setLoading(false);
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Fetch profile and role using setTimeout to avoid deadlock
-          setTimeout(async () => {
-            const [profileRes, roleRes] = await Promise.all([
-              supabase.from('profiles').select('*').eq('user_id', session.user.id).single(),
-              supabase.rpc('get_user_role', { _user_id: session.user.id }),
-            ]);
-            setProfile(profileRes.data);
-            setRole(roleRes.data);
-            setLoading(false);
-          }, 0);
+          // Use setTimeout to avoid Supabase auth deadlock
+          setTimeout(() => fetchProfileAndRole(session.user.id), 0);
         } else {
           setProfile(null);
           setRole(null);
