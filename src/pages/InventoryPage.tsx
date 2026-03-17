@@ -3,12 +3,14 @@ import { StockCard } from '@/components/StockCard';
 import { FAB } from '@/components/FAB';
 import { CreateInventoryDrawer } from '@/components/CreateInventoryDrawer';
 import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
+import { ChallanScannerDrawer } from '@/components/ChallanScannerDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useInventory, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, AlertTriangle, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package, AlertTriangle, Search, ScanLine } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
