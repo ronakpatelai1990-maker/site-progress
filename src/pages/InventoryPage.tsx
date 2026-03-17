@@ -3,12 +3,14 @@ import { StockCard } from '@/components/StockCard';
 import { FAB } from '@/components/FAB';
 import { CreateInventoryDrawer } from '@/components/CreateInventoryDrawer';
 import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
+import { ChallanScannerDrawer } from '@/components/ChallanScannerDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useInventory, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, AlertTriangle, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package, AlertTriangle, Search, ScanLine } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
@@ -19,6 +21,7 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [showChallan, setShowChallan] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -52,6 +55,17 @@ export default function InventoryPage() {
     <AppShell
       title="Stock Inventory"
       subtitle={`${inventory.length} items · ${lowStockItems.length} low stock`}
+      action={canManage ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
+          onClick={() => setShowChallan(true)}
+        >
+          <ScanLine className="h-4 w-4" />
+          Scan Challan
+        </Button>
+      ) : undefined}
     >
       {/* Filter tabs */}
       <div className="mb-3 flex gap-2">
@@ -153,6 +167,7 @@ export default function InventoryPage() {
         open={!!editingItem}
         onOpenChange={(o) => !o && setEditingItem(null)}
       />
+      <ChallanScannerDrawer open={showChallan} onOpenChange={setShowChallan} />
     </AppShell>
   );
 }
