@@ -167,6 +167,7 @@ export default function InventoryPage() {
         open={!!editingItem}
         onOpenChange={(o) => !o && setEditingItem(null)}
       />
+      <ChallanScannerDrawer open={showChallan} onOpenChange={setShowChallan} />
     </AppShell>
   );
 }
