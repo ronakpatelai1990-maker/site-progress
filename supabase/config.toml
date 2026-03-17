@@ -1,1 +1,4 @@
 project_id = "nomsfmphdwseszzstmvg"
+
+[functions.read-challan]
+verify_jwt = false
