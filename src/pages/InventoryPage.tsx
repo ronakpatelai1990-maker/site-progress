@@ -21,6 +21,7 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [showChallan, setShowChallan] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
