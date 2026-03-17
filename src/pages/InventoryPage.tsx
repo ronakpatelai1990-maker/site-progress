@@ -55,6 +55,17 @@ export default function InventoryPage() {
     <AppShell
       title="Stock Inventory"
       subtitle={`${inventory.length} items · ${lowStockItems.length} low stock`}
+      action={canManage ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
+          onClick={() => setShowChallan(true)}
+        >
+          <ScanLine className="h-4 w-4" />
+          Scan Challan
+        </Button>
+      ) : undefined}
     >
       {/* Filter tabs */}
       <div className="mb-3 flex gap-2">
