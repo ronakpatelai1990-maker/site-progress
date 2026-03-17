@@ -64,30 +64,39 @@ export type Database = {
       inventory: {
         Row: {
           available_qty: number
+          category: string | null
           created_at: string
           id: string
           item_name: string
           min_stock_level: number
+          size: string | null
+          sub_type: string | null
           total_qty: number
           unit: string
           updated_at: string
         }
         Insert: {
           available_qty?: number
+          category?: string | null
           created_at?: string
           id?: string
           item_name: string
           min_stock_level?: number
+          size?: string | null
+          sub_type?: string | null
           total_qty?: number
           unit?: string
           updated_at?: string
         }
         Update: {
           available_qty?: number
+          category?: string | null
           created_at?: string
           id?: string
           item_name?: string
           min_stock_level?: number
+          size?: string | null
+          sub_type?: string | null
           total_qty?: number
           unit?: string
           updated_at?: string
