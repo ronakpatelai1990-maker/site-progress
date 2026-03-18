@@ -242,6 +242,7 @@ export function ChallanScannerDrawer({ open, onOpenChange }: Props) {
                   onToggle={toggleItem}
                   onUpdateQty={updateItemQty}
                   onMatch={matchItemToInventory}
+                  onCreateAndMatch={createAndMatchItem}
                 />
               ))}
             </div>
