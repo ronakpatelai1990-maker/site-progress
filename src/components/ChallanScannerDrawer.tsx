@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, ImageIcon, FileText, Loader2, AlertCircle, Check, Package } from 'lucide-react';
+import { Camera, ImageIcon, FileText, Loader2, AlertCircle, Check, Package, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useChallanScanner, type ChallanItem } from '@/hooks/useChallanScanner';
 import { useInventory, useUpdateInventoryItem, type InventoryItem } from '@/hooks/useSupabaseData';
@@ -72,6 +72,19 @@ export function ChallanScannerDrawer({ open, onOpenChange }: Props) {
         : item
     );
     setChallanData(updated);
+  };
+  const createAndMatchItem = async (index: number, name: string, unit: string, category: string | null) => {
+    const { data, error: insertError } = await supabase
+      .from('inventory')
+      .insert({ item_name: name, unit, category, total_qty: 0, available_qty: 0, min_stock_level: 0 })
+      .select()
+      .single();
+
+    if (insertError) { toast.error(insertError.message); throw insertError; }
+
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    matchItemToInventory(index, data.id);
+    toast.success(`Created "${name}" in inventory`);
   };
 
   const handleUpdateStock = async () => {
@@ -229,6 +242,7 @@ export function ChallanScannerDrawer({ open, onOpenChange }: Props) {
                   onToggle={toggleItem}
                   onUpdateQty={updateItemQty}
                   onMatch={matchItemToInventory}
+                  onCreateAndMatch={createAndMatchItem}
                 />
               ))}
             </div>
@@ -267,6 +281,7 @@ function ChallanItemCard({
   onToggle,
   onUpdateQty,
   onMatch,
+  onCreateAndMatch,
 }: {
   item: ChallanItem;
   index: number;
@@ -274,9 +289,28 @@ function ChallanItemCard({
   onToggle: (i: number) => void;
   onUpdateQty: (i: number, qty: number) => void;
   onMatch: (i: number, invId: string) => void;
+  onCreateAndMatch: (i: number, name: string, unit: string, category: string) => Promise<void>;
 }) {
   const isMatched = !!item.matched_inventory_id;
   const matchedInv = inventory.find(i => i.id === item.matched_inventory_id);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newName, setNewName] = useState(item.item_name);
+  const [newUnit, setNewUnit] = useState(item.unit);
+  const [newCategory, setNewCategory] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreate = async () => {
+    if (!newName.trim()) { toast.error('Item name is required'); return; }
+    setIsCreating(true);
+    try {
+      await onCreateAndMatch(index, newName.trim(), newUnit || 'pcs', newCategory.trim() || null as any);
+      setShowCreateForm(false);
+    } catch {
+      // error handled upstream
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   return (
     <div className={`rounded-lg border p-3 space-y-2 transition-colors ${
@@ -303,7 +337,14 @@ function ChallanItemCard({
         <label className="text-xs text-muted-foreground mb-1 block">Match to inventory</label>
         <Select
           value={item.matched_inventory_id || ''}
-          onValueChange={(v) => onMatch(index, v)}
+          onValueChange={(v) => {
+            if (v === '__create_new__') {
+              setShowCreateForm(true);
+            } else {
+              setShowCreateForm(false);
+              onMatch(index, v);
+            }
+          }}
         >
           <SelectTrigger className="min-h-[40px] text-sm">
             <SelectValue placeholder="Select inventory item..." />
@@ -314,9 +355,48 @@ function ChallanItemCard({
                 {inv.item_name} ({inv.available_qty} {inv.unit})
               </SelectItem>
             ))}
+            <SelectItem value="__create_new__" className="text-accent font-medium">
+              <span className="flex items-center gap-1"><Plus className="h-3 w-3" /> Create new item</span>
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      {/* Create new inventory item form */}
+      {showCreateForm && (
+        <div className="rounded-md border border-accent/30 bg-accent/5 p-2.5 space-y-2">
+          <p className="text-xs font-medium text-accent">Create new inventory item</p>
+          <Input
+            placeholder="Item name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="min-h-[36px] text-sm"
+          />
+          <div className="flex gap-2">
+            <Input
+              placeholder="Unit (e.g. bags, kg)"
+              value={newUnit}
+              onChange={(e) => setNewUnit(e.target.value)}
+              className="min-h-[36px] text-sm flex-1"
+            />
+            <Input
+              placeholder="Category"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              className="min-h-[36px] text-sm flex-1"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowCreateForm(false)} disabled={isCreating}>
+              Cancel
+            </Button>
+            <Button size="sm" className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleCreate} disabled={isCreating}>
+              {isCreating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+              Create
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Quantity */}
       <div className="flex items-center gap-2">
