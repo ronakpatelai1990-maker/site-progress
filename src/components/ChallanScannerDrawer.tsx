@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, ImageIcon, FileText, Loader2, AlertCircle, Check, Package } from 'lucide-react';
+import { Camera, ImageIcon, FileText, Loader2, AlertCircle, Check, Package, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useChallanScanner, type ChallanItem } from '@/hooks/useChallanScanner';
 import { useInventory, useUpdateInventoryItem, type InventoryItem } from '@/hooks/useSupabaseData';
