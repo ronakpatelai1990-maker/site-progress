@@ -87,7 +87,7 @@ export function ChallanScannerDrawer({ open, onOpenChange }: Props) {
     toast.success(`Created "${name}" in inventory`);
   };
 
-
+  const handleUpdateStock = async () => {
     if (!challanData) return;
     const selectedItems = challanData.items.filter(i => i.selected && i.matched_inventory_id);
     if (selectedItems.length === 0) {
