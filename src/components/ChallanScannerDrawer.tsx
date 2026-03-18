@@ -73,8 +73,21 @@ export function ChallanScannerDrawer({ open, onOpenChange }: Props) {
     );
     setChallanData(updated);
   };
+  const createAndMatchItem = async (index: number, name: string, unit: string, category: string | null) => {
+    const { data, error: insertError } = await supabase
+      .from('inventory')
+      .insert({ item_name: name, unit, category, total_qty: 0, available_qty: 0, min_stock_level: 0 })
+      .select()
+      .single();
 
-  const handleUpdateStock = async () => {
+    if (insertError) { toast.error(insertError.message); throw insertError; }
+
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    matchItemToInventory(index, data.id);
+    toast.success(`Created "${name}" in inventory`);
+  };
+
+
     if (!challanData) return;
     const selectedItems = challanData.items.filter(i => i.selected && i.matched_inventory_id);
     if (selectedItems.length === 0) {
