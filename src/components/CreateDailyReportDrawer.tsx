@@ -141,27 +141,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
     return urls;
   };
 
-  // Auto deduct stock
-  const deductStock = async (validMaterials: MaterialEntry[]) => {
-    for (const mat of validMaterials) {
-      const item = inventory.find(inv => inv.id === mat.inventory_id);
-      if (!item) continue;
-      const newQty = Math.max(0, item.available_qty - mat.qty_used);
-      const { error } = await supabase
-        .from('inventory')
-        .update({ available_qty: newQty })
-        .eq('id', mat.inventory_id);
-      if (error) throw new Error(`Stock update failed: ${error.message}`);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-      // Warn if low stock after deduction
-      if (newQty < item.min_stock_level) {
-        toast.warning(`⚠️ Low stock: ${item.item_name} (${newQty} ${item.unit} remaining)`);
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: ['inventory'] });
-  };
-
-  const handleSubmit = async () => {
+  const doSubmit = async () => {
     if (!siteId || !bungalowNo || !roomNo || !workDescription.trim()) {
       toast.error('Please fill in site, bungalow, room and work description');
       return;
@@ -189,10 +171,18 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
         );
       });
 
-      // Auto deduct stock
-      if (validMaterials.length > 0) await deductStock(validMaterials);
+      // Check low stock after trigger-based deduction
+      for (const mat of validMaterials) {
+        const item = inventory.find(inv => inv.id === mat.inventory_id);
+        if (item) {
+          const projected = item.available_qty - mat.qty_used;
+          if (projected < item.min_stock_level) {
+            toast.warning(`${item.item_name} is running low! Current stock: ${projected} ${item.unit}. Please arrange resupply.`, { duration: 6000 });
+          }
+        }
+      }
 
-      toast.success('Report submitted & stock updated ✅');
+      toast.success(`Daily report saved. Inventory updated for ${validMaterials.length} material${validMaterials.length !== 1 ? 's' : ''}.`);
       handleClose(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit report');
@@ -200,6 +190,22 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
       setUploading(false);
     }
   };
+
+  const handleSubmit = () => {
+    const validMaterials = materials.filter(m => m.inventory_id && m.qty_used > 0);
+    if (validMaterials.length > 0) {
+      setShowConfirm(true);
+    } else {
+      doSubmit();
+    }
+  };
+
+  const confirmMaterials = materials
+    .filter(m => m.inventory_id && m.qty_used > 0)
+    .map(m => {
+      const item = inventory.find(inv => inv.id === m.inventory_id);
+      return { name: item?.item_name || 'Unknown', qty: m.qty_used, unit: m.unit };
+    });
 
   const stepTitles = ['Location & Work', 'Manpower', 'Materials Used', 'Site Photos'];
   const step0Valid = siteId && bungalowNo && roomNo && workDescription.trim();
