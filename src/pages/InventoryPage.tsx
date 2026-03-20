@@ -4,13 +4,16 @@ import { FAB } from '@/components/FAB';
 import { CreateInventoryDrawer } from '@/components/CreateInventoryDrawer';
 import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
 import { ChallanScannerDrawer } from '@/components/ChallanScannerDrawer';
+import { MaterialUsageHistory } from '@/components/MaterialUsageHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { useInventory, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
+import { useAllMaterialUsage, computeUsageStats } from '@/hooks/useMaterialUsage';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Package, AlertTriangle, Search, ScanLine } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
@@ -18,14 +21,26 @@ type Filter = 'all' | 'low';
 export default function InventoryPage() {
   const { role } = useAuth();
   const { data: inventory = [] } = useInventory();
+  const { data: allUsage = [] } = useAllMaterialUsage();
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
   const [showChallan, setShowChallan] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
   const lowStockItems = getLowStockItems(inventory);
+
+  // Precompute per-item usage stats
+  const itemStats = useMemo(() => {
+    const map: Record<string, ReturnType<typeof computeUsageStats>> = {};
+    for (const item of inventory) {
+      const records = allUsage.filter(u => u.inventory_id === item.id);
+      map[item.id] = computeUsageStats(records);
+    }
+    return map;
+  }, [inventory, allUsage]);
 
   // Get unique categories from inventory
   const categories = useMemo(() => {
@@ -140,13 +155,27 @@ export default function InventoryPage() {
 
       {/* Items list */}
       <div className="space-y-3">
-        {items.map(item => (
-          <StockCard
-            key={item.id}
-            item={item}
-            onClick={canManage ? () => setEditingItem(item) : undefined}
-          />
-        ))}
+        {items.map(item => {
+          const stats = itemStats[item.id];
+          return (
+            <div key={item.id} className="relative">
+              <StockCard
+                item={item}
+                onClick={() => canManage ? setEditingItem(item) : setHistoryItem(item)}
+                usedToday={stats?.usedToday}
+                usedThisWeek={stats?.usedThisWeek}
+                last7Days={stats?.last7Days}
+              />
+              {/* Usage history button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setHistoryItem(item); }}
+                className="absolute top-3 right-14 flex h-8 w-8 items-center justify-center rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+              >
+                <History className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+          );
+        })}
         {items.length === 0 && (
           <div className="card-elevated flex flex-col items-center justify-center py-12">
             <Package className="h-8 w-8 text-muted-foreground mb-2" />
@@ -168,6 +197,26 @@ export default function InventoryPage() {
         onOpenChange={(o) => !o && setEditingItem(null)}
       />
       <ChallanScannerDrawer open={showChallan} onOpenChange={setShowChallan} />
+
+      {/* Usage History Drawer */}
+      <Drawer open={!!historyItem} onOpenChange={(o) => !o && setHistoryItem(null)}>
+        <DrawerContent className="max-h-[90vh]">
+          <DrawerHeader className="text-left">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setHistoryItem(null)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary">
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <div>
+                <DrawerTitle>{historyItem?.item_name}</DrawerTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Usage History</p>
+              </div>
+            </div>
+          </DrawerHeader>
+          <div className="px-4 pb-6 overflow-y-auto max-h-[75vh]">
+            {historyItem && <MaterialUsageHistory item={historyItem} />}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </AppShell>
   );
 }
