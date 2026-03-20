@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -140,27 +141,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
     return urls;
   };
 
-  // Auto deduct stock
-  const deductStock = async (validMaterials: MaterialEntry[]) => {
-    for (const mat of validMaterials) {
-      const item = inventory.find(inv => inv.id === mat.inventory_id);
-      if (!item) continue;
-      const newQty = Math.max(0, item.available_qty - mat.qty_used);
-      const { error } = await supabase
-        .from('inventory')
-        .update({ available_qty: newQty })
-        .eq('id', mat.inventory_id);
-      if (error) throw new Error(`Stock update failed: ${error.message}`);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-      // Warn if low stock after deduction
-      if (newQty < item.min_stock_level) {
-        toast.warning(`⚠️ Low stock: ${item.item_name} (${newQty} ${item.unit} remaining)`);
-      }
-    }
-    queryClient.invalidateQueries({ queryKey: ['inventory'] });
-  };
-
-  const handleSubmit = async () => {
+  const doSubmit = async () => {
     if (!siteId || !bungalowNo || !roomNo || !workDescription.trim()) {
       toast.error('Please fill in site, bungalow, room and work description');
       return;
@@ -188,10 +171,18 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
         );
       });
 
-      // Auto deduct stock
-      if (validMaterials.length > 0) await deductStock(validMaterials);
+      // Check low stock after trigger-based deduction
+      for (const mat of validMaterials) {
+        const item = inventory.find(inv => inv.id === mat.inventory_id);
+        if (item) {
+          const projected = item.available_qty - mat.qty_used;
+          if (projected < item.min_stock_level) {
+            toast.warning(`${item.item_name} is running low! Current stock: ${projected} ${item.unit}. Please arrange resupply.`, { duration: 6000 });
+          }
+        }
+      }
 
-      toast.success('Report submitted & stock updated ✅');
+      toast.success(`Daily report saved. Inventory updated for ${validMaterials.length} material${validMaterials.length !== 1 ? 's' : ''}.`);
       handleClose(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit report');
@@ -199,6 +190,22 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
       setUploading(false);
     }
   };
+
+  const handleSubmit = () => {
+    const validMaterials = materials.filter(m => m.inventory_id && m.qty_used > 0);
+    if (validMaterials.length > 0) {
+      setShowConfirm(true);
+    } else {
+      doSubmit();
+    }
+  };
+
+  const confirmMaterials = materials
+    .filter(m => m.inventory_id && m.qty_used > 0)
+    .map(m => {
+      const item = inventory.find(inv => inv.id === m.inventory_id);
+      return { name: item?.item_name || 'Unknown', qty: m.qty_used, unit: m.unit };
+    });
 
   const stepTitles = ['Location & Work', 'Manpower', 'Materials Used', 'Site Photos'];
   const step0Valid = siteId && bungalowNo && roomNo && workDescription.trim();
@@ -342,8 +349,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
               )}
               {materials.map((m, i) => {
                 const item = inventory.find(inv => inv.id === m.inventory_id);
+                const isInsufficient = item && m.qty_used > 0 && m.qty_used > item.available_qty;
                 return (
-                  <div key={i} className="space-y-2 rounded-lg border border-border p-3">
+                  <div key={i} className={`space-y-2 rounded-lg border p-3 ${isInsufficient ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
                     <Select value={m.inventory_id} onValueChange={v => updateMaterial(i, 'inventory_id', v)}>
                       <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select item" /></SelectTrigger>
                       <SelectContent>
@@ -354,12 +362,22 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                         ))}
                       </SelectContent>
                     </Select>
+                    {/* Current stock indicator */}
+                    {item && (
+                      <div className="flex items-center gap-2 px-1">
+                        <span className={`text-xs font-medium ${item.available_qty < item.min_stock_level ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          Stock: {item.available_qty} {item.unit}
+                        </span>
+                        {item.available_qty < item.min_stock_level && (
+                          <span className="text-[10px] bg-destructive/10 text-destructive rounded-full px-1.5 py-0.5">Low</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Input
-                        className="min-h-[48px] flex-1"
+                        className={`min-h-[48px] flex-1 ${isInsufficient ? 'border-destructive' : ''}`}
                         type="number"
                         min={0}
-                        max={item?.available_qty}
                         value={m.qty_used || ''}
                         onChange={e => updateMaterial(i, 'qty_used', e.target.value)}
                         placeholder="Qty used"
@@ -369,8 +387,8 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    {item && m.qty_used > 0 && m.qty_used > item.available_qty && (
-                      <p className="text-xs text-destructive">⚠️ Exceeds available stock ({item.available_qty} {item.unit})</p>
+                    {isInsufficient && (
+                      <p className="text-xs text-destructive font-medium">⚠️ Insufficient stock! Available: {item.available_qty} {item.unit}</p>
                     )}
                   </div>
                 );
@@ -443,6 +461,34 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
           </div>
         </DrawerFooter>
       </DrawerContent>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Material Deduction</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-3">This will deduct the following materials from inventory:</p>
+                <div className="space-y-1.5">
+                  {confirmMaterials.map((m, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="font-medium text-foreground">{m.name}</span>
+                      <span className="tabular-nums text-destructive">−{m.qty} {m.unit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowConfirm(false); doSubmit(); }}>
+              Confirm & Submit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }

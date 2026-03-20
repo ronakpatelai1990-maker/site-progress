@@ -68,10 +68,13 @@ export type Database = {
           created_at: string
           id: string
           item_name: string
+          last_used_date: string | null
+          last_used_quantity: number | null
           min_stock_level: number
           size: string | null
           sub_type: string | null
           total_qty: number
+          total_used: number
           unit: string
           updated_at: string
         }
@@ -81,10 +84,13 @@ export type Database = {
           created_at?: string
           id?: string
           item_name: string
+          last_used_date?: string | null
+          last_used_quantity?: number | null
           min_stock_level?: number
           size?: string | null
           sub_type?: string | null
           total_qty?: number
+          total_used?: number
           unit?: string
           updated_at?: string
         }
@@ -94,10 +100,13 @@ export type Database = {
           created_at?: string
           id?: string
           item_name?: string
+          last_used_date?: string | null
+          last_used_quantity?: number | null
           min_stock_level?: number
           size?: string | null
           sub_type?: string | null
           total_qty?: number
+          total_used?: number
           unit?: string
           updated_at?: string
         }
