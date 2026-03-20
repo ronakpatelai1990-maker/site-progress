@@ -461,6 +461,34 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
           </div>
         </DrawerFooter>
       </DrawerContent>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Material Deduction</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-3">This will deduct the following materials from inventory:</p>
+                <div className="space-y-1.5">
+                  {confirmMaterials.map((m, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="font-medium text-foreground">{m.name}</span>
+                      <span className="tabular-nums text-destructive">−{m.qty} {m.unit}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowConfirm(false); doSubmit(); }}>
+              Confirm & Submit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Drawer>
   );
 }
