@@ -349,8 +349,9 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
               )}
               {materials.map((m, i) => {
                 const item = inventory.find(inv => inv.id === m.inventory_id);
+                const isInsufficient = item && m.qty_used > 0 && m.qty_used > item.available_qty;
                 return (
-                  <div key={i} className="space-y-2 rounded-lg border border-border p-3">
+                  <div key={i} className={`space-y-2 rounded-lg border p-3 ${isInsufficient ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
                     <Select value={m.inventory_id} onValueChange={v => updateMaterial(i, 'inventory_id', v)}>
                       <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select item" /></SelectTrigger>
                       <SelectContent>
@@ -361,12 +362,22 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                         ))}
                       </SelectContent>
                     </Select>
+                    {/* Current stock indicator */}
+                    {item && (
+                      <div className="flex items-center gap-2 px-1">
+                        <span className={`text-xs font-medium ${item.available_qty < item.min_stock_level ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          Stock: {item.available_qty} {item.unit}
+                        </span>
+                        {item.available_qty < item.min_stock_level && (
+                          <span className="text-[10px] bg-destructive/10 text-destructive rounded-full px-1.5 py-0.5">Low</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Input
-                        className="min-h-[48px] flex-1"
+                        className={`min-h-[48px] flex-1 ${isInsufficient ? 'border-destructive' : ''}`}
                         type="number"
                         min={0}
-                        max={item?.available_qty}
                         value={m.qty_used || ''}
                         onChange={e => updateMaterial(i, 'qty_used', e.target.value)}
                         placeholder="Qty used"
@@ -376,8 +387,8 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    {item && m.qty_used > 0 && m.qty_used > item.available_qty && (
-                      <p className="text-xs text-destructive">⚠️ Exceeds available stock ({item.available_qty} {item.unit})</p>
+                    {isInsufficient && (
+                      <p className="text-xs text-destructive font-medium">⚠️ Insufficient stock! Available: {item.available_qty} {item.unit}</p>
                     )}
                   </div>
                 );
