@@ -1,4 +1,4 @@
-import { Home, MapPin, Package, User, BarChart3, ClipboardList } from 'lucide-react';
+import { Home, MapPin, Package, User, BarChart3, ClipboardList, FileBarChart } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -7,6 +7,7 @@ const baseNavItems = [
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/daily', icon: ClipboardList, label: 'Daily' },
   { to: '/inventory', icon: Package, label: 'Stock' },
+  { to: '/stock-report', icon: FileBarChart, label: 'Usage' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
 
@@ -15,6 +16,7 @@ const adminNavItems = [
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/daily', icon: ClipboardList, label: 'Daily' },
   { to: '/inventory', icon: Package, label: 'Stock' },
+  { to: '/stock-report', icon: FileBarChart, label: 'Usage' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
