@@ -9,6 +9,7 @@ import InventoryPage from "./pages/InventoryPage";
 import ProfilePage from "./pages/ProfilePage";
 import ReportsPage from "./pages/ReportsPage";
 import DailyProgressPage from "./pages/DailyProgressPage";
+import StockUsageReportPage from "./pages/StockUsageReportPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
