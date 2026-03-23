@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfiles } from '@/hooks/useSupabaseData';
 import { useUserRoles, getRoleForUser } from '@/hooks/useUserRoles';
@@ -39,17 +40,20 @@ export default function ProfilePage() {
     <AppShell title="Profile" subtitle={roleLabel}>
       {/* Own profile card */}
       <div className="card-elevated p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10">
-            <User className="h-7 w-7 text-accent" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-amber">
+              <User className="h-7 w-7 text-white" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-foreground">{profile?.name || 'User'}</p>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${roleBadgeClass[role as AppRole] || 'bg-primary/10 text-primary'}`}>
+                <Shield className="h-3 w-3" />
+                {roleLabel}
+              </span>
+            </div>
           </div>
-          <div>
-            <p className="text-lg font-semibold text-foreground">{profile?.name || 'User'}</p>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${roleBadgeClass[role as AppRole] || 'bg-primary/10 text-primary'}`}>
-              <Shield className="h-3 w-3" />
-              {roleLabel}
-            </span>
-          </div>
+          <ThemeToggle />
         </div>
 
         <div className="mt-5 space-y-3 border-t border-border pt-5">
@@ -66,7 +70,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Team list — visible to admin & engineer */}
+      {/* Team list */}
       {role !== 'supervisor' && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
@@ -76,7 +80,7 @@ export default function ProfilePage() {
             {isAdmin && (
               <Button
                 size="sm"
-                className="bg-accent text-accent-foreground hover:bg-accent/90 h-8 gap-1.5 px-3 text-xs"
+                className="gradient-amber text-accent-foreground border-0 h-8 gap-1.5 px-3 text-xs font-semibold rounded-xl"
                 onClick={() => setShowAddEmployee(true)}
               >
                 <UserPlus className="h-3.5 w-3.5" />
@@ -87,11 +91,8 @@ export default function ProfilePage() {
 
           {profiles.filter(u => u.user_id !== profile?.user_id).length === 0 ? (
             <div className="card-elevated flex flex-col items-center justify-center py-8">
-              <User className="h-8 w-8 text-muted-foreground mb-2" />
+              <User className="h-8 w-8 text-muted-foreground/40 mb-2" />
               <p className="text-sm text-muted-foreground">No team members yet</p>
-              {isAdmin && (
-                <p className="text-xs text-muted-foreground mt-1">Tap "Add Employee" to get started</p>
-              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -100,28 +101,21 @@ export default function ProfilePage() {
                 const empRoleLabel = empRole ? empRole.charAt(0).toUpperCase() + empRole.slice(1) : 'User';
                 return (
                   <div key={p.id} className="card-elevated flex items-center gap-3 p-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary">
                       <User className="h-4 w-4 text-secondary-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                      <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-medium ${roleBadgeClass[empRole as AppRole] || 'bg-muted text-muted-foreground'}`}>
                           <Shield className="h-2.5 w-2.5" />
                           {empRoleLabel}
                         </span>
-                        {p.phone && (
-                          <span className="text-xs text-muted-foreground truncate">{p.phone}</span>
-                        )}
+                        {p.phone && <span className="text-xs text-muted-foreground truncate">{p.phone}</span>}
                       </div>
                     </div>
                     {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 shrink-0"
-                        onClick={() => handleEditEmployee(p)}
-                      >
+                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => handleEditEmployee(p)}>
                         <Pencil className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     )}
@@ -135,7 +129,7 @@ export default function ProfilePage() {
 
       <Button
         variant="outline"
-        className="mt-6 min-h-[48px] w-full text-destructive"
+        className="mt-6 min-h-[52px] w-full text-destructive rounded-2xl border-destructive/30"
         onClick={signOut}
       >
         <LogOut className="mr-2 h-4 w-4" />
@@ -145,15 +139,10 @@ export default function ProfilePage() {
       {isAdmin && (
         <>
           <EditEmployeeDrawer
-            employee={editingEmployee}
-            employeeRole={editingRole}
-            open={!!editingEmployee}
-            onOpenChange={(o) => !o && setEditingEmployee(null)}
+            employee={editingEmployee} employeeRole={editingRole}
+            open={!!editingEmployee} onOpenChange={(o) => !o && setEditingEmployee(null)}
           />
-          <AddEmployeeDrawer
-            open={showAddEmployee}
-            onOpenChange={setShowAddEmployee}
-          />
+          <AddEmployeeDrawer open={showAddEmployee} onOpenChange={setShowAddEmployee} />
         </>
       )}
     </AppShell>

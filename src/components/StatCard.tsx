@@ -1,5 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { AnimatedNumber } from './AnimatedNumber';
 
 interface StatCardProps {
   label: string;
@@ -9,11 +10,11 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-const variantStyles = {
-  default: 'bg-secondary text-secondary-foreground',
-  warning: 'bg-warning/10 text-warning',
-  success: 'bg-success/10 text-success',
-  destructive: 'bg-destructive/10 text-destructive',
+const gradientStyles = {
+  default: 'gradient-navy',
+  warning: 'gradient-warning',
+  success: 'gradient-success',
+  destructive: 'gradient-destructive',
 };
 
 export function StatCard({ label, value, icon: Icon, variant = 'default', onClick }: StatCardProps) {
@@ -21,15 +22,21 @@ export function StatCard({ label, value, icon: Icon, variant = 'default', onClic
     <motion.button
       whileTap={{ scale: 0.96 }}
       onClick={onClick}
-      className={`card-elevated flex w-full items-center gap-3 p-4 text-left transition-colors duration-150`}
+      className="card-elevated flex w-full flex-col gap-3 p-4 text-left overflow-hidden relative"
     >
-      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${variantStyles[variant]}`}>
-        <Icon className="h-5 w-5" strokeWidth={1.8} />
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${gradientStyles[variant]}`}>
+        <Icon className="h-5 w-5 text-white" strokeWidth={1.8} />
       </div>
       <div>
-        <p className="tabular-nums text-2xl font-semibold text-foreground">{value}</p>
+        {typeof value === 'number' ? (
+          <AnimatedNumber value={value} className="text-2xl font-bold text-foreground" />
+        ) : (
+          <p className="tabular-nums text-2xl font-bold text-foreground">{value}</p>
+        )}
         <p className="label-meta mt-0.5">{label}</p>
       </div>
+      {/* Decorative gradient corner */}
+      <div className={`absolute -right-4 -top-4 h-16 w-16 rounded-full ${gradientStyles[variant]} opacity-10`} />
     </motion.button>
   );
 }
