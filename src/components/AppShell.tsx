@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { BottomNav } from './BottomNav';
+import { NotificationBell } from './NotificationBell';
 import logoImg from '/logo-192.png';
 
 interface AppShellProps {
