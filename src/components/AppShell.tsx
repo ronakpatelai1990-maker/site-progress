@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { BottomNav } from './BottomNav';
+import { NotificationBell } from './NotificationBell';
 import logoImg from '/logo-192.png';
 
 interface AppShellProps {
@@ -22,7 +23,10 @@ export function AppShell({ children, title, subtitle, action }: AppShellProps) {
                 {subtitle && <p className="text-[11px] text-muted-foreground">{subtitle}</p>}
               </div>
             </div>
-            {action}
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              {action}
+            </div>
           </div>
         </header>
       )}
