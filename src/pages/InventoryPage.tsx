@@ -6,14 +6,14 @@ import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
 import { ChallanScannerDrawer } from '@/components/ChallanScannerDrawer';
 import { MaterialUsageHistory } from '@/components/MaterialUsageHistory';
 import { useAuth } from '@/hooks/useAuth';
-import { useInventory, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
+import { useInventory, useSites, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
 import { useAllMaterialUsage, computeUsageStats } from '@/hooks/useMaterialUsage';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History } from 'lucide-react';
+import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
@@ -21,6 +21,7 @@ type Filter = 'all' | 'low';
 export default function InventoryPage() {
   const { role } = useAuth();
   const { data: inventory = [] } = useInventory();
+  const { data: sites = [] } = useSites();
   const { data: allUsage = [] } = useAllMaterialUsage();
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreate, setShowCreate] = useState(false);
@@ -29,6 +30,7 @@ export default function InventoryPage() {
   const [showChallan, setShowChallan] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [siteFilter, setSiteFilter] = useState('all');
 
   const lowStockItems = getLowStockItems(inventory);
 
