@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Camera, ImageIcon, X, FileText, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
-import { useCreateInventoryItem, useUpdateInventoryItem, useInventory } from '@/hooks/useSupabaseData';
+import { useCreateInventoryItem, useUpdateInventoryItem, useInventory, useSites } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
