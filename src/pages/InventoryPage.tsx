@@ -55,6 +55,9 @@ export default function InventoryPage() {
   // Filter items
   const items = useMemo(() => {
     let result = filter === 'low' ? lowStockItems : inventory;
+    if (siteFilter !== 'all') {
+      result = result.filter(i => (i as any).site_id === siteFilter);
+    }
     if (categoryFilter !== 'all') {
       result = result.filter(i => i.category === categoryFilter);
     }
@@ -64,7 +67,7 @@ export default function InventoryPage() {
       );
     }
     return result;
-  }, [inventory, lowStockItems, filter, categoryFilter, search]);
+  }, [inventory, lowStockItems, filter, siteFilter, categoryFilter, search]);
 
   const canManage = role === 'admin';
 
