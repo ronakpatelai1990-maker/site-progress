@@ -71,6 +71,7 @@ export type Database = {
           last_used_date: string | null
           last_used_quantity: number | null
           min_stock_level: number
+          site_id: string | null
           size: string | null
           sub_type: string | null
           total_qty: number
@@ -87,6 +88,7 @@ export type Database = {
           last_used_date?: string | null
           last_used_quantity?: number | null
           min_stock_level?: number
+          site_id?: string | null
           size?: string | null
           sub_type?: string | null
           total_qty?: number
@@ -103,6 +105,7 @@ export type Database = {
           last_used_date?: string | null
           last_used_quantity?: number | null
           min_stock_level?: number
+          site_id?: string | null
           size?: string | null
           sub_type?: string | null
           total_qty?: number
@@ -110,7 +113,15 @@ export type Database = {
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       material_usage: {
         Row: {
