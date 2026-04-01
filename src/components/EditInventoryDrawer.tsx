@@ -92,6 +92,7 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
         category,
         sub_type: subtype || null,
         size: size || null,
+        site_id: siteId || null,
       } as any,
       {
         onSuccess: () => { toast.success('Item updated'); handleClose(false); },

@@ -241,6 +241,7 @@ If you cannot read something clearly, make your best guess.`,
             available_qty: item.qty,
             min_stock_level: 0,
             unit: item.unit,
+            site_id: siteId || null,
           });
         }
       }
