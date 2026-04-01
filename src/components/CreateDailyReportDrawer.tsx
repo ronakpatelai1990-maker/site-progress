@@ -355,7 +355,7 @@ export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }
                     <Select value={m.inventory_id} onValueChange={v => updateMaterial(i, 'inventory_id', v)}>
                       <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select item" /></SelectTrigger>
                       <SelectContent>
-                        {inventory.map(inv => (
+                        {inventory.filter(inv => (inv as any).site_id === siteId || !(inv as any).site_id).map(inv => (
                           <SelectItem key={inv.id} value={inv.id}>
                             {inv.item_name} ({inv.available_qty} {inv.unit} avail)
                           </SelectItem>
