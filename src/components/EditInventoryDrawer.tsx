@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useUpdateInventoryItem, useDeleteInventoryItem } from '@/hooks/useSupabaseData';
+import { useUpdateInventoryItem, useDeleteInventoryItem, useSites } from '@/hooks/useSupabaseData';
 import type { InventoryItem } from '@/hooks/useSupabaseData';
 
 interface EditInventoryDrawerProps {
