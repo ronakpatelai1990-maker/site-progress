@@ -132,6 +132,7 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
         category,
         sub_type: subtype || null,
         size: size || null,
+        site_id: siteId,
       } as any,
       {
         onSuccess: () => {
