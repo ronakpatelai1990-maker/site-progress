@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Camera, ImageIcon, X, FileText, CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react';
-import { useCreateInventoryItem, useUpdateInventoryItem, useInventory } from '@/hooks/useSupabaseData';
+import { useCreateInventoryItem, useUpdateInventoryItem, useInventory, useSites } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -72,11 +72,13 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const { data: inventory = [] } = useInventory();
+  const { data: sites = [] } = useSites();
   const queryClient = useQueryClient();
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const [tab, setTab] = useState<Tab>('manual');
+  const [siteId, setSiteId] = useState('');
 
   // Manual form
   const [category, setCategory] = useState('');
@@ -99,7 +101,7 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
 
   const reset = () => {
     setCategory(''); setSubtype(''); setFitting(''); setSize('');
-    setTotalQty(''); setMinStockLevel(''); setUnit('');
+    setTotalQty(''); setMinStockLevel(''); setUnit(''); setSiteId('');
     setChallanlPreview(null); setChallanlFile(null);
     setParsedItems([]); setConfirmed(false); setParsing(false);
     setTab('manual');
@@ -112,8 +114,8 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
 
   // ── Manual submit ──────────────────────────────────────────────────────
   const handleManualSubmit = () => {
-    if (!category || !totalQty || !unit) {
-      toast.error('Please fill in required fields'); return;
+    if (!category || !totalQty || !unit || !siteId) {
+      toast.error('Please fill in required fields including site'); return;
     }
     const total = Number(totalQty);
     if (total <= 0) { toast.error('Quantity must be positive'); return; }
@@ -130,6 +132,7 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
         category,
         sub_type: subtype || null,
         size: size || null,
+        site_id: siteId,
       } as any,
       {
         onSuccess: () => {
@@ -238,6 +241,7 @@ If you cannot read something clearly, make your best guess.`,
             available_qty: item.qty,
             min_stock_level: 0,
             unit: item.unit,
+            site_id: siteId || null,
           });
         }
       }
@@ -286,6 +290,16 @@ If you cannot read something clearly, make your best guess.`,
           {/* ── MANUAL TAB ─────────────────────────────────────────────── */}
           {tab === 'manual' && (
             <div className="space-y-4 pt-2">
+              {/* Site */}
+              <div>
+                <label className="label-meta mb-1.5 block">Site *</label>
+                <Select value={siteId} onValueChange={setSiteId}>
+                  <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select site" /></SelectTrigger>
+                  <SelectContent>
+                    {sites.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               {/* Category */}
               <div>
                 <label className="label-meta mb-1.5 block">Category *</label>

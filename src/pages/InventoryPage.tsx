@@ -6,14 +6,14 @@ import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
 import { ChallanScannerDrawer } from '@/components/ChallanScannerDrawer';
 import { MaterialUsageHistory } from '@/components/MaterialUsageHistory';
 import { useAuth } from '@/hooks/useAuth';
-import { useInventory, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
+import { useInventory, useSites, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
 import { useAllMaterialUsage, computeUsageStats } from '@/hooks/useMaterialUsage';
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History } from 'lucide-react';
+import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
@@ -21,6 +21,7 @@ type Filter = 'all' | 'low';
 export default function InventoryPage() {
   const { role } = useAuth();
   const { data: inventory = [] } = useInventory();
+  const { data: sites = [] } = useSites();
   const { data: allUsage = [] } = useAllMaterialUsage();
   const [filter, setFilter] = useState<Filter>('all');
   const [showCreate, setShowCreate] = useState(false);
@@ -29,6 +30,7 @@ export default function InventoryPage() {
   const [showChallan, setShowChallan] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [siteFilter, setSiteFilter] = useState('all');
 
   const lowStockItems = getLowStockItems(inventory);
 
@@ -53,6 +55,11 @@ export default function InventoryPage() {
   // Filter items
   const items = useMemo(() => {
     let result = filter === 'low' ? lowStockItems : inventory;
+    if (siteFilter === 'unassigned') {
+      result = result.filter(i => !(i as any).site_id);
+    } else if (siteFilter !== 'all') {
+      result = result.filter(i => (i as any).site_id === siteFilter);
+    }
     if (categoryFilter !== 'all') {
       result = result.filter(i => i.category === categoryFilter);
     }
@@ -62,7 +69,7 @@ export default function InventoryPage() {
       );
     }
     return result;
-  }, [inventory, lowStockItems, filter, categoryFilter, search]);
+  }, [inventory, lowStockItems, filter, siteFilter, categoryFilter, search]);
 
   const canManage = role === 'admin';
 
@@ -112,7 +119,23 @@ export default function InventoryPage() {
         />
       </div>
 
-      {/* Category dropdown */}
+      {/* Site filter */}
+      <div className="mb-3">
+        <Select value={siteFilter} onValueChange={setSiteFilter}>
+          <SelectTrigger className="min-h-[44px]">
+            <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+            <SelectValue placeholder="All Sites" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sites</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {sites.map(s => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {categories.length > 2 && (
         <div className="mb-4">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>

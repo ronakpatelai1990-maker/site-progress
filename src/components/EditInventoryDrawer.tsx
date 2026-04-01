@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useUpdateInventoryItem, useDeleteInventoryItem } from '@/hooks/useSupabaseData';
+import { useUpdateInventoryItem, useDeleteInventoryItem, useSites } from '@/hooks/useSupabaseData';
 import type { InventoryItem } from '@/hooks/useSupabaseData';
 
 interface EditInventoryDrawerProps {
@@ -41,6 +41,7 @@ const buildItemName = (cat: string, sub: string, fit: string, size: string) =>
 export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryDrawerProps) {
   const updateItem = useUpdateInventoryItem();
   const deleteItem = useDeleteInventoryItem();
+  const { data: sites = [] } = useSites();
 
   const [category, setCategory] = useState('');
   const [subtype, setSubtype] = useState('');
@@ -50,11 +51,11 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
   const [availableQty, setAvailableQty] = useState('');
   const [minStockLevel, setMinStockLevel] = useState('');
   const [unit, setUnit] = useState('');
+  const [siteId, setSiteId] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   if (item && !initialized) {
-    // Try to parse existing item_name back into parts
     const parts = item.item_name.split(' - ');
     setCategory((item as any).category || parts[0] || '');
     setSubtype((item as any).sub_type || parts[1] || '');
@@ -64,6 +65,7 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
     setAvailableQty(String(item.available_qty));
     setMinStockLevel(String(item.min_stock_level));
     setUnit(item.unit);
+    setSiteId((item as any).site_id || '');
     setInitialized(true);
   }
 
@@ -90,6 +92,7 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
         category,
         sub_type: subtype || null,
         size: size || null,
+        site_id: siteId || null,
       } as any,
       {
         onSuccess: () => { toast.success('Item updated'); handleClose(false); },
@@ -128,6 +131,16 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Site */}
+              <div>
+                <label className="label-meta mb-1.5 block">Site</label>
+                <Select value={siteId} onValueChange={setSiteId}>
+                  <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select site" /></SelectTrigger>
+                  <SelectContent>
+                    {sites.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               {/* Category */}
               <div>
                 <label className="label-meta mb-1.5 block">Category *</label>
