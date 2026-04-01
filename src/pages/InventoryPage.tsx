@@ -55,7 +55,9 @@ export default function InventoryPage() {
   // Filter items
   const items = useMemo(() => {
     let result = filter === 'low' ? lowStockItems : inventory;
-    if (siteFilter !== 'all') {
+    if (siteFilter === 'unassigned') {
+      result = result.filter(i => !(i as any).site_id);
+    } else if (siteFilter !== 'all') {
       result = result.filter(i => (i as any).site_id === siteFilter);
     }
     if (categoryFilter !== 'all') {
