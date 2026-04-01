@@ -101,7 +101,7 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
 
   const reset = () => {
     setCategory(''); setSubtype(''); setFitting(''); setSize('');
-    setTotalQty(''); setMinStockLevel(''); setUnit('');
+    setTotalQty(''); setMinStockLevel(''); setUnit(''); setSiteId('');
     setChallanlPreview(null); setChallanlFile(null);
     setParsedItems([]); setConfirmed(false); setParsing(false);
     setTab('manual');
