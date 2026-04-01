@@ -72,11 +72,13 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const { data: inventory = [] } = useInventory();
+  const { data: sites = [] } = useSites();
   const queryClient = useQueryClient();
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
   const [tab, setTab] = useState<Tab>('manual');
+  const [siteId, setSiteId] = useState('');
 
   // Manual form
   const [category, setCategory] = useState('');
