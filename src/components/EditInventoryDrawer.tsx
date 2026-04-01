@@ -131,6 +131,16 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
             </div>
           ) : (
             <div className="space-y-4">
+              {/* Site */}
+              <div>
+                <label className="label-meta mb-1.5 block">Site</label>
+                <Select value={siteId} onValueChange={setSiteId}>
+                  <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select site" /></SelectTrigger>
+                  <SelectContent>
+                    {sites.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               {/* Category */}
               <div>
                 <label className="label-meta mb-1.5 block">Category *</label>
