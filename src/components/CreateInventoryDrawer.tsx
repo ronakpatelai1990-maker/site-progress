@@ -114,8 +114,8 @@ export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDra
 
   // ── Manual submit ──────────────────────────────────────────────────────
   const handleManualSubmit = () => {
-    if (!category || !totalQty || !unit) {
-      toast.error('Please fill in required fields'); return;
+    if (!category || !totalQty || !unit || !siteId) {
+      toast.error('Please fill in required fields including site'); return;
     }
     const total = Number(totalQty);
     if (total <= 0) { toast.error('Quantity must be positive'); return; }
