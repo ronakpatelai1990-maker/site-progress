@@ -117,7 +117,23 @@ export default function InventoryPage() {
         />
       </div>
 
-      {/* Category dropdown */}
+      {/* Site filter */}
+      <div className="mb-3">
+        <Select value={siteFilter} onValueChange={setSiteFilter}>
+          <SelectTrigger className="min-h-[44px]">
+            <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+            <SelectValue placeholder="All Sites" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sites</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {sites.map(s => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {categories.length > 2 && (
         <div className="mb-4">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
