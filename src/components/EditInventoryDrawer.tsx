@@ -41,6 +41,7 @@ const buildItemName = (cat: string, sub: string, fit: string, size: string) =>
 export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryDrawerProps) {
   const updateItem = useUpdateInventoryItem();
   const deleteItem = useDeleteInventoryItem();
+  const { data: sites = [] } = useSites();
 
   const [category, setCategory] = useState('');
   const [subtype, setSubtype] = useState('');
@@ -50,11 +51,11 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
   const [availableQty, setAvailableQty] = useState('');
   const [minStockLevel, setMinStockLevel] = useState('');
   const [unit, setUnit] = useState('');
+  const [siteId, setSiteId] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   if (item && !initialized) {
-    // Try to parse existing item_name back into parts
     const parts = item.item_name.split(' - ');
     setCategory((item as any).category || parts[0] || '');
     setSubtype((item as any).sub_type || parts[1] || '');
@@ -64,6 +65,7 @@ export function EditInventoryDrawer({ item, open, onOpenChange }: EditInventoryD
     setAvailableQty(String(item.available_qty));
     setMinStockLevel(String(item.min_stock_level));
     setUnit(item.unit);
+    setSiteId((item as any).site_id || '');
     setInitialized(true);
   }
 
