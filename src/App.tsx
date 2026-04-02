@@ -1,4 +1,7 @@
-import { lazy, Suspense } from 'react';
+import { useRegisterSW } from "virtual:pwa-register/react";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,7 +21,20 @@ const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Keep data fresh for 5 minutes
+      staleTime: 1000 * 60 * 5,
+      // Keep in cache for 24 hours — survives page refresh while offline
+      gcTime: 1000 * 60 * 60 * 24,
+      // Retry only when online
+      retry: navigator.onLine ? 3 : 0,
+      // Always refetch when regaining connection
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 function PageLoader() {
   return (
@@ -40,38 +56,120 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-
   if (loading) return <PageLoader />;
-
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/my-tasks" element={<ProtectedRoute><MyTasksPage /></ProtectedRoute>} />
-        <Route path="/sites" element={<ProtectedRoute><SitesPage /></ProtectedRoute>} />
-        <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/daily" element={<ProtectedRoute><DailyProgressPage /></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-        <Route path="/stock-report" element={<ProtectedRoute><StockUsageReportPage /></ProtectedRoute>} />
+        <Route
+          path="/auth"
+          element={user ? <Navigate to="/" replace /> : <AuthPage />}
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-tasks"
+          element={
+            <ProtectedRoute>
+              <MyTasksPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sites"
+          element={
+            <ProtectedRoute>
+              <SitesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedRoute>
+              <InventoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/daily"
+          element={
+            <ProtectedRoute>
+              <DailyProgressPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute>
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/stock-report"
+          element={
+            <ProtectedRoute>
+              <StockUsageReportPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   );
 }
 
+// Registers the service worker and handles auto-updates
+function PWAManager() {
+  useRegisterSW({
+    onRegistered(registration) {
+      console.log("[PWA] Service worker registered:", registration);
+    },
+    onRegisterError(error) {
+      console.error("[PWA] Service worker registration failed:", error);
+    },
+    onOfflineReady() {
+      console.log("[PWA] App is ready to work offline");
+    },
+  });
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        {/* Offline status bar — sits above everything */}
+        <OfflineIndicator />
+
         <Sonner position="top-center" />
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />
+            {/* Your existing install prompt — kept as-is */}
             <InstallPrompt />
+            {/* New PWA install banner for Android + iOS */}
+            <PWAInstallBanner />
           </AuthProvider>
         </BrowserRouter>
+
+        {/* Registers and manages the service worker */}
+        <PWAManager />
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>
