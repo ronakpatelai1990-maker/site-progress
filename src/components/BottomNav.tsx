@@ -1,4 +1,4 @@
-import { Home, MapPin, Package, User, BarChart3, ClipboardList, FileBarChart } from 'lucide-react';
+import { Home, MapPin, Package, User, BarChart3, ClipboardList, FileBarChart, ListChecks } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasks, useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
@@ -6,19 +6,19 @@ import { motion } from 'framer-motion';
 
 const baseNavItems = [
   { to: '/', icon: Home, label: 'Home' },
+  { to: '/my-tasks', icon: ListChecks, label: 'My Tasks' },
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/daily', icon: ClipboardList, label: 'Daily' },
   { to: '/inventory', icon: Package, label: 'Stock' },
-  { to: '/stock-report', icon: FileBarChart, label: 'Usage' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
 
 const adminNavItems = [
   { to: '/', icon: Home, label: 'Home' },
+  { to: '/my-tasks', icon: ListChecks, label: 'My Tasks' },
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/daily', icon: ClipboardList, label: 'Daily' },
   { to: '/inventory', icon: Package, label: 'Stock' },
-  { to: '/stock-report', icon: FileBarChart, label: 'Usage' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
@@ -34,6 +34,7 @@ export function BottomNav() {
 
   const getBadge = (to: string) => {
     if (to === '/' && pendingCount > 0) return pendingCount;
+    if (to === '/my-tasks' && pendingCount > 0) return pendingCount;
     if (to === '/inventory' && lowStockCount > 0) return lowStockCount;
     return 0;
   };

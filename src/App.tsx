@@ -14,6 +14,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const DailyProgressPage = lazy(() => import("./pages/DailyProgressPage"));
 const StockUsageReportPage = lazy(() => import("./pages/StockUsageReportPage"));
+const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -47,6 +48,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/my-tasks" element={<ProtectedRoute><MyTasksPage /></ProtectedRoute>} />
         <Route path="/sites" element={<ProtectedRoute><SitesPage /></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><InventoryPage /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

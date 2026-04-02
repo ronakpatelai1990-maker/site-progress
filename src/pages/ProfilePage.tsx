@@ -20,6 +20,7 @@ const roleBadgeClass: Record<AppRole, string> = {
   admin: 'bg-destructive/10 text-destructive',
   engineer: 'bg-accent/10 text-accent',
   supervisor: 'bg-warning/10 text-warning',
+  contractor: 'bg-primary/10 text-primary',
 };
 
 export default function ProfilePage() {
