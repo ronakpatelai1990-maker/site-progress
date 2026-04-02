@@ -13,7 +13,8 @@ import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History, MapPin } from 'lucide-react';
+import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History, MapPin, ArrowLeftRight } from 'lucide-react';
+import { BulkTransferDrawer } from '@/components/BulkTransferDrawer';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
