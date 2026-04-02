@@ -3,11 +3,13 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@/hooks/useSupabaseData';
 import type { Enums } from '@/integrations/supabase/types';
+import { Trash2 } from 'lucide-react';
 
 type AppRole = Enums<'app_role'>;
 
@@ -30,7 +32,10 @@ export function EditEmployeeDrawer({ employee, employeeRole, open, onOpenChange 
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<AppRole>('engineer');
+  const [canEdit, setCanEdit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (employee && open) {
@@ -38,6 +43,8 @@ export function EditEmployeeDrawer({ employee, employeeRole, open, onOpenChange 
       setPhone(employee.phone || '');
       setEmail(employee.email || '');
       setRole(employeeRole || 'engineer');
+      setCanEdit((employee as any).can_edit ?? false);
+      setConfirmDelete(false);
     }
   }, [employee, employeeRole, open]);
 
@@ -48,23 +55,19 @@ export function EditEmployeeDrawer({ employee, employeeRole, open, onOpenChange 
     }
     setSaving(true);
     try {
-      // Update profile
       const { error: profileErr } = await supabase
         .from('profiles')
-        .update({ name: name.trim(), phone: phone.trim() || null, email: email.trim() || null })
+        .update({ name: name.trim(), phone: phone.trim() || null, email: email.trim() || null, can_edit: canEdit })
         .eq('id', employee.id);
       if (profileErr) throw profileErr;
 
-      // Update role — upsert into user_roles
       if (role !== employeeRole) {
-        // Delete existing role
         const { error: deleteErr } = await supabase
           .from('user_roles')
           .delete()
           .eq('user_id', employee.user_id);
         if (deleteErr) throw deleteErr;
 
-        // Insert new role
         const { error: insertErr } = await supabase
           .from('user_roles')
           .insert({ user_id: employee.user_id, role });
@@ -79,6 +82,32 @@ export function EditEmployeeDrawer({ employee, employeeRole, open, onOpenChange 
       toast.error(err.message || 'Failed to update');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!employee) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      // Delete role first
+      await supabase.from('user_roles').delete().eq('user_id', employee.user_id);
+      // Delete profile
+      const { error } = await supabase.from('profiles').delete().eq('id', employee.id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['user_roles'] });
+      toast.success(`${employee.name} removed`);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
@@ -114,12 +143,28 @@ export function EditEmployeeDrawer({ employee, employeeRole, open, onOpenChange 
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center justify-between rounded-xl border border-border p-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Editor Access</p>
+              <p className="text-xs text-muted-foreground">Can add, edit & delete team members</p>
+            </div>
+            <Switch checked={canEdit} onCheckedChange={setCanEdit} />
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" className="min-h-[48px] flex-1" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button className="min-h-[48px] flex-1 bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSave} disabled={saving}>
               {saving ? 'Saving...' : 'Save'}
             </Button>
           </div>
+          <Button
+            variant="outline"
+            className="min-h-[48px] w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {deleting ? 'Removing...' : confirmDelete ? 'Tap again to confirm removal' : 'Remove Employee'}
+          </Button>
         </div>
         <DrawerFooter />
       </DrawerContent>
