@@ -13,7 +13,8 @@ import { motion } from 'framer-motion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History, MapPin } from 'lucide-react';
+import { Package, AlertTriangle, Search, ScanLine, ArrowLeft, History, MapPin, ArrowLeftRight } from 'lucide-react';
+import { BulkTransferDrawer } from '@/components/BulkTransferDrawer';
 import { Input } from '@/components/ui/input';
 
 type Filter = 'all' | 'low';
@@ -28,6 +29,7 @@ export default function InventoryPage() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null);
   const [showChallan, setShowChallan] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [siteFilter, setSiteFilter] = useState('all');
@@ -78,15 +80,26 @@ export default function InventoryPage() {
       title="Stock Inventory"
       subtitle={`${inventory.length} items · ${lowStockItems.length} low stock`}
       action={canManage ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
-          onClick={() => setShowChallan(true)}
-        >
-          <ScanLine className="h-4 w-4" />
-          Scan Challan
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
+            onClick={() => setShowTransfer(true)}
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+            Transfer
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
+            onClick={() => setShowChallan(true)}
+          >
+            <ScanLine className="h-4 w-4" />
+            Scan
+          </Button>
+        </div>
       ) : undefined}
     >
       {/* Filter tabs */}
@@ -220,6 +233,7 @@ export default function InventoryPage() {
         onOpenChange={(o) => !o && setEditingItem(null)}
       />
       <ChallanScannerDrawer open={showChallan} onOpenChange={setShowChallan} />
+      <BulkTransferDrawer open={showTransfer} onOpenChange={setShowTransfer} />
 
       {/* Usage History Drawer */}
       <Drawer open={!!historyItem} onOpenChange={(o) => !o && setHistoryItem(null)}>
