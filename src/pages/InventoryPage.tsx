@@ -233,6 +233,7 @@ export default function InventoryPage() {
         onOpenChange={(o) => !o && setEditingItem(null)}
       />
       <ChallanScannerDrawer open={showChallan} onOpenChange={setShowChallan} />
+      <BulkTransferDrawer open={showTransfer} onOpenChange={setShowTransfer} />
 
       {/* Usage History Drawer */}
       <Drawer open={!!historyItem} onOpenChange={(o) => !o && setHistoryItem(null)}>
