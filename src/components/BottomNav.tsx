@@ -34,6 +34,7 @@ export function BottomNav() {
 
   const getBadge = (to: string) => {
     if (to === '/' && pendingCount > 0) return pendingCount;
+    if (to === '/my-tasks' && pendingCount > 0) return pendingCount;
     if (to === '/inventory' && lowStockCount > 0) return lowStockCount;
     return 0;
   };
