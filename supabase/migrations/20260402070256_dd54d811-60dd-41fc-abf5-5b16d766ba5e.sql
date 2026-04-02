@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN can_edit boolean NOT NULL DEFAULT false;

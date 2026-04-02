@@ -201,6 +201,7 @@ export type Database = {
       profiles: {
         Row: {
           assigned_engineer_id: string | null
+          can_edit: boolean
           created_at: string
           email: string | null
           id: string
@@ -211,6 +212,7 @@ export type Database = {
         }
         Insert: {
           assigned_engineer_id?: string | null
+          can_edit?: boolean
           created_at?: string
           email?: string | null
           id?: string
@@ -221,6 +223,7 @@ export type Database = {
         }
         Update: {
           assigned_engineer_id?: string | null
+          can_edit?: boolean
           created_at?: string
           email?: string | null
           id?: string
