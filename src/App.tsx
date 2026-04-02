@@ -14,6 +14,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const DailyProgressPage = lazy(() => import("./pages/DailyProgressPage"));
 const StockUsageReportPage = lazy(() => import("./pages/StockUsageReportPage"));
+const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
