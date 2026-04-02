@@ -24,6 +24,7 @@ const ROLES: { value: AppRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'engineer', label: 'Engineer' },
   { value: 'supervisor', label: 'Supervisor' },
+  { value: 'contractor', label: 'Contractor' },
 ];
 
 export function EditEmployeeDrawer({ employee, employeeRole, open, onOpenChange }: EditEmployeeDrawerProps) {
