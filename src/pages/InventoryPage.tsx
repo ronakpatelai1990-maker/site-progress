@@ -80,15 +80,26 @@ export default function InventoryPage() {
       title="Stock Inventory"
       subtitle={`${inventory.length} items · ${lowStockItems.length} low stock`}
       action={canManage ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
-          onClick={() => setShowChallan(true)}
-        >
-          <ScanLine className="h-4 w-4" />
-          Scan Challan
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
+            onClick={() => setShowTransfer(true)}
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+            Transfer
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-accent border-accent/30 hover:bg-accent/10"
+            onClick={() => setShowChallan(true)}
+          >
+            <ScanLine className="h-4 w-4" />
+            Scan
+          </Button>
+        </div>
       ) : undefined}
     >
       {/* Filter tabs */}
