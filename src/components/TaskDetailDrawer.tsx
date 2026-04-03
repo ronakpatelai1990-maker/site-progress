@@ -89,7 +89,11 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
     );
   };
 
+  const isContractor = role === 'contractor';
+
   const handleStatusChange = (newStatus: 'pending' | 'in_progress' | 'completed') => {
+    // Contractors can only set pending or completed
+    if (isContractor && newStatus === 'in_progress') return;
     updateStatus.mutate(
       { taskId: task.id, status: newStatus },
       {
