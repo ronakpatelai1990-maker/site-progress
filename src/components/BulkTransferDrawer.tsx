@@ -32,14 +32,7 @@ export function BulkTransferDrawer({ open, onOpenChange }: BulkTransferDrawerPro
   const [success, setSuccess] = useState(false);
   const [transferItems, setTransferItems] = useState<TransferItem[]>([]);
 
-  // Filter inventory by source site
-  const _sourceItems = useMemo(() => {
-    if (!sourceSite) return [];
-    const filtered = sourceSite === 'unassigned'
-      ? inventory.filter(i => !i.site_id)
-      : inventory.filter(i => i.site_id === sourceSite);
-    return filtered.filter(i => i.available_qty > 0);
-  }, [inventory, sourceSite]);
+  // Filter inventory by source site (used in handleSourceChange below)
 
   // Update transfer items when source changes
   const handleSourceChange = (siteId: string) => {
