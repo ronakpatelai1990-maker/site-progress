@@ -112,6 +112,9 @@ export function useCreateTask() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (!user) throw new Error("Not authenticated");
+      if (!input.site_id) throw new Error("Site is required");
+
       const { data, error } = await supabase
         .from("tasks")
         .insert([{
@@ -121,10 +124,10 @@ export function useCreateTask() {
           status: input.status ?? "pending",
           priority: input.priority ?? "medium",
           assigned_name: input.assigned_name ?? null,
-          assigned_to: user?.id ?? "00000000-0000-0000-0000-000000000000",
+          assigned_to: user.id,
           deadline: input.deadline ?? null,
-          site_id: input.site_id ?? null,
-          created_by: user?.id ?? null,
+          site_id: input.site_id,
+          created_by: user.id,
           position: 0,
         }])
         .select()
