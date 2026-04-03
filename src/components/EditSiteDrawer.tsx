@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { toast } from 'sonner';
 import { useUpdateSite, useDeleteSite } from '@/hooks/useSupabaseData';
 import type { Site, Profile } from '@/hooks/useSupabaseData';
 
