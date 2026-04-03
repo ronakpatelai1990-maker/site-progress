@@ -239,11 +239,10 @@ export function useUpdateTaskStatus() {
       );
 
       if (previous) {
-        const allTasks = [
-          ...previous.todo,
+      const allTasks = [
+          ...previous.pending,
           ...previous.in_progress,
-          ...previous.done,
-          ...previous.blocked,
+          ...previous.completed,
         ];
         const task = allTasks.find((t) => t.id === id);
         if (task) {
