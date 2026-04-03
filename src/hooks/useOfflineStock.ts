@@ -50,7 +50,7 @@ export function useOfflineStock(projectId?: string) {
       const { data, error } = await q;
       if (error) throw error;
       setLastSynced(new Date());
-      return (data as StockItem[]) ?? [];
+      return (data?.map((d: any) => ({ id: d.id, name: d.item_name, quantity: d.available_qty, unit: d.unit })) as StockItem[]) ?? [];
     },
     // Keep data fresh for 5 minutes
     staleTime: 1000 * 60 * 5,
