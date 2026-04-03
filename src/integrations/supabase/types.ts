@@ -266,11 +266,15 @@ export type Database = {
       }
       tasks: {
         Row: {
+          assigned_name: string | null
           assigned_to: string
           created_at: string
+          created_by: string | null
           deadline: string | null
           description: string | null
           id: string
+          position: number | null
+          priority: string | null
           remarks: string | null
           site_id: string
           status: Database["public"]["Enums"]["task_status"]
@@ -278,11 +282,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_name?: string | null
           assigned_to: string
           created_at?: string
+          created_by?: string | null
           deadline?: string | null
           description?: string | null
           id?: string
+          position?: number | null
+          priority?: string | null
           remarks?: string | null
           site_id: string
           status?: Database["public"]["Enums"]["task_status"]
@@ -290,11 +298,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_name?: string | null
           assigned_to?: string
           created_at?: string
+          created_by?: string | null
           deadline?: string | null
           description?: string | null
           id?: string
+          position?: number | null
+          priority?: string | null
           remarks?: string | null
           site_id?: string
           status?: Database["public"]["Enums"]["task_status"]
