@@ -19,7 +19,7 @@ interface Props {
 export function ChallanScannerDrawer({ open, onOpenChange }: Props) {
   const { data: inventory = [] } = useInventory();
   const { scanChallan, isScanning, challanData, setChallanData, error, reset } = useChallanScanner();
-  const updateItem = useUpdateInventoryItem();
+  useUpdateInventoryItem();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);

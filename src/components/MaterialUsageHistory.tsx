@@ -50,7 +50,6 @@ export function MaterialUsageHistory({ item }: Props) {
 
   // Calculate running stock for each record (reverse chronological)
   const recordsWithStock = useMemo(() => {
-    let runningStock = item.available_qty;
     // Records are desc order, so we need to add back qty to get "remaining after"
     // Actually, we should just show qty and date — running stock needs all records.
     return filteredRecords.map(r => ({

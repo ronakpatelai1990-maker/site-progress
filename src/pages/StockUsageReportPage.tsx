@@ -4,7 +4,7 @@ import { useInventory, useSites } from '@/hooks/useSupabaseData';
 import { useAllMaterialUsage } from '@/hooks/useMaterialUsage';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProfiles } from '@/hooks/useSupabaseData';
-import { format, startOfMonth, startOfWeek, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, startOfWeek, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

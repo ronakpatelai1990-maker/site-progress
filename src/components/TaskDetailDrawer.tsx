@@ -89,7 +89,11 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
     );
   };
 
+  const isContractor = role === 'contractor';
+
   const handleStatusChange = (newStatus: 'pending' | 'in_progress' | 'completed') => {
+    // Contractors can only set pending or completed
+    if (isContractor && newStatus === 'in_progress') return;
     updateStatus.mutate(
       { taskId: task.id, status: newStatus },
       {
@@ -195,7 +199,9 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
               <div className="mt-6">
                 <p className="label-meta mb-2">Update Status</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['pending', 'in_progress', 'completed'] as const).map(status => (
+                  {(['pending', 'in_progress', 'completed'] as const)
+                    .filter(status => !isContractor || status !== 'in_progress')
+                    .map(status => (
                     <motion.button
                       key={status}
                       whileTap={{ scale: 0.96 }}

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 // Types — matching your exact Supabase column names
 // ============================================================
 
-export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
+export type TaskStatus = "pending" | "in_progress" | "completed";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface Task {
@@ -43,10 +43,9 @@ export interface UpdateTaskInput extends Partial<CreateTaskInput> {
 }
 
 export interface GroupedTasks {
-  todo: Task[];
+  pending: Task[];
   in_progress: Task[];
-  done: Task[];
-  blocked: Task[];
+  completed: Task[];
 }
 
 // ============================================================
@@ -81,19 +80,17 @@ export function useTasks(siteId?: string) {
 
       const tasks = (data as Task[]) ?? [];
 
-      // Normalise status — handle any unexpected values gracefully
       const normalise = (status: string): TaskStatus => {
-        if (["todo", "in_progress", "done", "blocked"].includes(status)) {
+        if (["pending", "in_progress", "completed"].includes(status)) {
           return status as TaskStatus;
         }
-        return "todo";
+        return "pending";
       };
 
       return {
-        todo: tasks.filter((t) => normalise(t.status) === "todo"),
+        pending: tasks.filter((t) => normalise(t.status) === "pending"),
         in_progress: tasks.filter((t) => normalise(t.status) === "in_progress"),
-        done: tasks.filter((t) => normalise(t.status) === "done"),
-        blocked: tasks.filter((t) => normalise(t.status) === "blocked"),
+        completed: tasks.filter((t) => normalise(t.status) === "completed"),
       };
     },
     staleTime: 1000 * 60 * 2,
@@ -115,20 +112,24 @@ export function useCreateTask() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (!user) throw new Error("Not authenticated");
+      if (!input.site_id) throw new Error("Site is required");
+
       const { data, error } = await supabase
         .from("tasks")
-        .insert({
+        .insert([{
           title: input.title,
           description: input.description ?? null,
           remarks: input.remarks ?? null,
-          status: input.status ?? "todo",
+          status: input.status ?? "pending",
           priority: input.priority ?? "medium",
           assigned_name: input.assigned_name ?? null,
+          assigned_to: user.id,
           deadline: input.deadline ?? null,
-          site_id: input.site_id ?? null,
-          created_by: user?.id ?? null,
+          site_id: input.site_id,
+          created_by: user.id,
           position: 0,
-        })
+        }])
         .select()
         .single();
 
@@ -241,11 +242,10 @@ export function useUpdateTaskStatus() {
       );
 
       if (previous) {
-        const allTasks = [
-          ...previous.todo,
+      const allTasks = [
+          ...previous.pending,
           ...previous.in_progress,
-          ...previous.done,
-          ...previous.blocked,
+          ...previous.completed,
         ];
         const task = allTasks.find((t) => t.id === id);
         if (task) {
@@ -253,22 +253,18 @@ export function useUpdateTaskStatus() {
           const without = (list: Task[]) => list.filter((t) => t.id !== id);
 
           queryClient.setQueryData<GroupedTasks>(taskKeys.bySite(siteId), {
-            todo:
-              status === "todo"
-                ? [...without(previous.todo), updatedTask]
-                : without(previous.todo),
+            pending:
+              status === "pending"
+                ? [...without(previous.pending), updatedTask]
+                : without(previous.pending),
             in_progress:
               status === "in_progress"
                 ? [...without(previous.in_progress), updatedTask]
                 : without(previous.in_progress),
-            done:
-              status === "done"
-                ? [...without(previous.done), updatedTask]
-                : without(previous.done),
-            blocked:
-              status === "blocked"
-                ? [...without(previous.blocked), updatedTask]
-                : without(previous.blocked),
+            completed:
+              status === "completed"
+                ? [...without(previous.completed), updatedTask]
+                : without(previous.completed),
           });
         }
       }

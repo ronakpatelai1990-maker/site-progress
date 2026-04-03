@@ -43,14 +43,14 @@ export function useOfflineStock(projectId?: string) {
     queryKey: ["stock-items", projectId],
     queryFn: async (): Promise<StockItem[]> => {
       // Replace "stock_items" with your actual Supabase table name
-      let q = supabase.from("stock_items").select("*").order("name");
+      let q = supabase.from("inventory").select("id, item_name, available_qty, unit").order("item_name");
       if (projectId) {
-        q = q.eq("project_id", projectId);
+        q = q.eq("site_id", projectId);
       }
       const { data, error } = await q;
       if (error) throw error;
       setLastSynced(new Date());
-      return (data as StockItem[]) ?? [];
+      return (data?.map((d: any) => ({ id: d.id, name: d.item_name, quantity: d.available_qty, unit: d.unit })) as StockItem[]) ?? [];
     },
     // Keep data fresh for 5 minutes
     staleTime: 1000 * 60 * 5,

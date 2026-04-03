@@ -3,8 +3,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUpdateSite, useDeleteSite } from '@/hooks/useSupabaseData';
 import type { Site, Profile } from '@/hooks/useSupabaseData';

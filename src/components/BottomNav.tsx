@@ -1,4 +1,4 @@
-import { Home, MapPin, Package, User, BarChart3, ClipboardList, FileBarChart, ListChecks } from 'lucide-react';
+import { Home, MapPin, Package, User, BarChart3, ClipboardList, ListChecks } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasks, useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
