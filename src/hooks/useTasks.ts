@@ -6,7 +6,7 @@ import { toast } from "sonner";
 // Types — matching your exact Supabase column names
 // ============================================================
 
-export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
+export type TaskStatus = "pending" | "in_progress" | "completed";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface Task {
