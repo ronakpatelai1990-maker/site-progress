@@ -121,7 +121,7 @@ export function useCreateTask() {
           status: input.status ?? "pending",
           priority: input.priority ?? "medium",
           assigned_name: input.assigned_name ?? null,
-          assigned_to: user?.id ?? "",
+          assigned_to: user?.id ?? "00000000-0000-0000-0000-000000000000",
           deadline: input.deadline ?? null,
           site_id: input.site_id ?? null,
           created_by: user?.id ?? null,
