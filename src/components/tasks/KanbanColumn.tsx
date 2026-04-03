@@ -5,10 +5,9 @@ import type { Task, TaskStatus } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 
 const STATUS_META: Record<TaskStatus, { label: string; color: string; bg: string }> = {
-  todo: { label: "To Do", color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-950/30" },
+  pending: { label: "Pending", color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-950/30" },
   in_progress: { label: "In Progress", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30" },
-  done: { label: "Done", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
-  blocked: { label: "Blocked", color: "text-red-600", bg: "bg-red-50 dark:bg-red-950/30" },
+  completed: { label: "Completed", color: "text-green-600", bg: "bg-green-50 dark:bg-green-950/30" },
 };
 
 interface KanbanColumnProps {
@@ -21,7 +20,7 @@ interface KanbanColumnProps {
   onDropTask: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-export function KanbanColumn({ status, tasks, onAddTask, onEditTask, onViewDetail, onDropTask }: KanbanColumnProps) {
+export function KanbanColumn({ status, tasks, onAddTask, onViewDetail, onDropTask }: KanbanColumnProps) {
   const meta = STATUS_META[status];
   const { role } = useAuth();
   const canCreate = role === "admin" || role === "engineer";

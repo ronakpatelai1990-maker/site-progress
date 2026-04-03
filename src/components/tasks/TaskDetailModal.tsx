@@ -13,12 +13,9 @@ interface TaskDetailModalProps {
   onClose: () => void;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  todo: "To Do",
-  in_progress: "In Progress",
-  done: "Done",
-  blocked: "Blocked",
+const STATUS_LABELS: Record<TaskStatus, string> = {
   pending: "Pending",
+  in_progress: "In Progress",
   completed: "Completed",
 };
 
@@ -41,16 +38,16 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
 
   const site = sites?.find((s) => s.id === task.site_id);
 
-  // Contractors can only toggle between pending and done
+  // Contractors can only toggle between pending and completed
   const availableStatuses: TaskStatus[] = isContractor
-    ? (["todo", "done"] as TaskStatus[])
-    : (["todo", "in_progress", "done", "blocked"] as TaskStatus[]);
+    ? ["pending", "completed"]
+    : ["pending", "in_progress", "completed"];
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     updateStatus.mutate(
       { id: task.id, status: newStatus, siteId: task.site_id ?? undefined },
       {
-        onSuccess: () => toast.success(`Status → ${STATUS_LABELS[newStatus] || newStatus}`),
+        onSuccess: () => toast.success(`Status → ${STATUS_LABELS[newStatus]}`),
         onError: (err) => toast.error(err.message),
       }
     );
@@ -97,7 +94,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
 
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Update Status</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid gap-2 ${isContractor ? "grid-cols-2" : "grid-cols-3"}`}>
               {availableStatuses.map((s) => (
                 <Button
                   key={s}
@@ -106,7 +103,7 @@ export function TaskDetailModal({ task, open, onClose }: TaskDetailModalProps) {
                   className="min-h-[40px]"
                   onClick={() => handleStatusChange(s)}
                 >
-                  {STATUS_LABELS[s] || s}
+                  {STATUS_LABELS[s]}
                 </Button>
               ))}
             </div>
