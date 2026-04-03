@@ -43,10 +43,9 @@ export interface UpdateTaskInput extends Partial<CreateTaskInput> {
 }
 
 export interface GroupedTasks {
-  todo: Task[];
+  pending: Task[];
   in_progress: Task[];
-  done: Task[];
-  blocked: Task[];
+  completed: Task[];
 }
 
 // ============================================================
