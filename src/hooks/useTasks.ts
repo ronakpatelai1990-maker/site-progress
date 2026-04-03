@@ -250,22 +250,18 @@ export function useUpdateTaskStatus() {
           const without = (list: Task[]) => list.filter((t) => t.id !== id);
 
           queryClient.setQueryData<GroupedTasks>(taskKeys.bySite(siteId), {
-            todo:
-              status === "todo"
-                ? [...without(previous.todo), updatedTask]
-                : without(previous.todo),
+            pending:
+              status === "pending"
+                ? [...without(previous.pending), updatedTask]
+                : without(previous.pending),
             in_progress:
               status === "in_progress"
                 ? [...without(previous.in_progress), updatedTask]
                 : without(previous.in_progress),
-            done:
-              status === "done"
-                ? [...without(previous.done), updatedTask]
-                : without(previous.done),
-            blocked:
-              status === "blocked"
-                ? [...without(previous.blocked), updatedTask]
-                : without(previous.blocked),
+            completed:
+              status === "completed"
+                ? [...without(previous.completed), updatedTask]
+                : without(previous.completed),
           });
         }
       }
