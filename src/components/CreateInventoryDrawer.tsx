@@ -70,7 +70,7 @@ type Tab = 'manual' | 'challan';
 
 export function CreateInventoryDrawer({ open, onOpenChange }: CreateInventoryDrawerProps) {
   const createItem = useCreateInventoryItem();
-  const updateItem = useUpdateInventoryItem();
+  const _updateItem = useUpdateInventoryItem();
   const { data: inventory = [] } = useInventory();
   const { data: sites = [] } = useSites();
   const queryClient = useQueryClient();

@@ -61,7 +61,7 @@ const getBungalowCount = (sites: Site[], siteId: string) => {
 export function CreateDailyReportDrawer({ open, onOpenChange, sites, inventory }: Props) {
   const { user } = useAuth();
   const createReport = useCreateDailyReport();
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
