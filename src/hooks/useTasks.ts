@@ -114,18 +114,19 @@ export function useCreateTask() {
 
       const { data, error } = await supabase
         .from("tasks")
-        .insert({
+        .insert([{
           title: input.title,
           description: input.description ?? null,
           remarks: input.remarks ?? null,
-          status: input.status ?? "todo",
+          status: input.status ?? "pending",
           priority: input.priority ?? "medium",
           assigned_name: input.assigned_name ?? null,
+          assigned_to: user?.id ?? "",
           deadline: input.deadline ?? null,
           site_id: input.site_id ?? null,
           created_by: user?.id ?? null,
           position: 0,
-        })
+        }])
         .select()
         .single();
 
