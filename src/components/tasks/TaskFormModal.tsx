@@ -16,7 +16,7 @@ interface TaskFormModalProps {
   siteId?: string;
 }
 
-export function TaskFormModal({ open, onClose, task, defaultStatus = "todo", siteId }: TaskFormModalProps) {
+export function TaskFormModal({ open, onClose, task, defaultStatus = "pending", siteId }: TaskFormModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const isEditing = !!task;
