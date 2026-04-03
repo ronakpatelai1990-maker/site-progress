@@ -80,19 +80,17 @@ export function useTasks(siteId?: string) {
 
       const tasks = (data as Task[]) ?? [];
 
-      // Normalise status — handle any unexpected values gracefully
       const normalise = (status: string): TaskStatus => {
-        if (["todo", "in_progress", "done", "blocked"].includes(status)) {
+        if (["pending", "in_progress", "completed"].includes(status)) {
           return status as TaskStatus;
         }
-        return "todo";
+        return "pending";
       };
 
       return {
-        todo: tasks.filter((t) => normalise(t.status) === "todo"),
+        pending: tasks.filter((t) => normalise(t.status) === "pending"),
         in_progress: tasks.filter((t) => normalise(t.status) === "in_progress"),
-        done: tasks.filter((t) => normalise(t.status) === "done"),
-        blocked: tasks.filter((t) => normalise(t.status) === "blocked"),
+        completed: tasks.filter((t) => normalise(t.status) === "completed"),
       };
     },
     staleTime: 1000 * 60 * 2,
