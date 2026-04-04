@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
-import { useIsOwner, useCanEdit } from '@/hooks/useUserRole';
+import { useIsOwner } from '@/hooks/useUserRole';
 import { RoleGate } from '@/components/RoleGate';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
