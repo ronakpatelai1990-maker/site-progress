@@ -76,7 +76,7 @@ export function TaskCard({
   // Uses your "deadline" column
   const isOverdue =
     task.deadline &&
-    task.status !== "done" &&
+    task.status !== "completed" &&
     isPast(parseISO(task.deadline));
 
   const handleCardClick = (e: React.MouseEvent) => {
