@@ -110,8 +110,8 @@ export default function MyTasksPage() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-background">
-      <div className="border-b border-border px-4 py-4 sm:px-6">
+    <AppShell title="My Tasks" subtitle={`${totalTasks} task${totalTasks !== 1 ? "s" : ""}${totalTasks > 0 ? ` · ${completedTasks} done` : ""}`}>
+      <div className="flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
