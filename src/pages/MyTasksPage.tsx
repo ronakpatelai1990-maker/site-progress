@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, CheckSquare } from "lucide-react";
+import { Plus } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -109,29 +110,16 @@ export default function MyTasksPage() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-background">
-      <div className="border-b border-border px-4 py-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5 text-primary" />
-              <h1 className="text-xl font-semibold text-foreground">My Tasks</h1>
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {selectedSiteName ? <span>{selectedSiteName} · </span> : null}
-              {totalTasks} task{totalTasks !== 1 ? "s" : ""}
-              {totalTasks > 0 && (
-                <> · <span className="text-green-600">{completedTasks} done</span></>
-              )}
-            </p>
-          </div>
-
+     <AppShell
+        title="My Tasks"
+        subtitle={`${selectedSiteName ? selectedSiteName + " · " : ""}${totalTasks} task${totalTasks !== 1 ? "s" : ""}${totalTasks > 0 ? ` · ${completedTasks} done` : ""}`}
+        action={
           <div className="flex items-center gap-2">
             <Select
               value={selectedSiteId ?? "all"}
               onValueChange={(v) => setSelectedSiteId(v === "all" ? undefined : v)}
             >
-              <SelectTrigger className="w-40 h-9 text-sm">
+              <SelectTrigger className="w-32 h-9 text-sm">
                 <SelectValue placeholder="All sites" />
               </SelectTrigger>
               <SelectContent>
@@ -141,53 +129,51 @@ export default function MyTasksPage() {
                 ))}
               </SelectContent>
             </Select>
-
             {canCreate && (
               <Button size="sm" className="h-9" onClick={() => handleAddTask("pending")}>
                 <Plus className="h-4 w-4 mr-1.5" />
-                New task
+                New
               </Button>
             )}
           </div>
+        }
+      >
+        <div className="flex-1 overflow-x-auto">
+          {isLoading ? (
+            <KanbanSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 lg:min-w-[600px]">
+              {COLUMNS.map((status) => (
+                <KanbanColumn
+                  key={status}
+                  status={status}
+                  tasks={groupedTasks?.[status] ?? []}
+                  onAddTask={handleAddTask}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                  onViewDetail={setDetailTask}
+                  onDropTask={handleDropTask}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="flex-1 overflow-x-auto p-4 sm:p-6">
-        {isLoading ? (
-          <KanbanSkeleton />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0 lg:min-w-[600px]">
-            {COLUMNS.map((status) => (
-              <KanbanColumn
-                key={status}
-                status={status}
-                tasks={groupedTasks?.[status] ?? []}
-                onAddTask={handleAddTask}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-                onViewDetail={setDetailTask}
-                onDropTask={handleDropTask}
-              />
-            ))}
-          </div>
+        {canCreate && (
+          <TaskFormModal
+            open={formOpen}
+            onClose={handleFormClose}
+            task={editingTask}
+            defaultStatus={formDefaultStatus}
+            siteId={selectedSiteId}
+          />
         )}
-      </div>
 
-      {canCreate && (
-        <TaskFormModal
-          open={formOpen}
-          onClose={handleFormClose}
-          task={editingTask}
-          defaultStatus={formDefaultStatus}
-          siteId={selectedSiteId}
+        <TaskDetailModal
+          task={detailTask}
+          open={!!detailTask}
+          onClose={() => setDetailTask(null)}
         />
-      )}
-
-      <TaskDetailModal
-        task={detailTask}
-        open={!!detailTask}
-        onClose={() => setDetailTask(null)}
-      />
-    </div>
+      </AppShell>
   );
 }
