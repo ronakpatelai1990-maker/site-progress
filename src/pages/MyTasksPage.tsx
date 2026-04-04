@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, CheckSquare } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import {
   Select,
