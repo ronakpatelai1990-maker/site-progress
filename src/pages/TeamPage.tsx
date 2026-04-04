@@ -56,7 +56,7 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline' | 'de
 export default function TeamPage() {
   const { user } = useAuth();
   const isOwner = useIsOwner();
-  const canEdit = useCanEdit();
+  const _canEdit = useCanEdit();
   const queryClient = useQueryClient();
   const { data: members = [], isLoading } = useTeamMembers();
   const [inviteOpen, setInviteOpen] = useState(false);
