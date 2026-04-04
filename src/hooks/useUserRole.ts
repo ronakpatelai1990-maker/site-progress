@@ -1,7 +1,4 @@
 import { useAuth } from '@/hooks/useAuth';
-import type { Enums } from '@/integrations/supabase/types';
-
-type AppRole = Enums<'app_role'>;
 
 export function useUserRole() {
   const { role } = useAuth();
