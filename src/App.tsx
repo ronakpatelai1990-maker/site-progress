@@ -19,6 +19,7 @@ const DailyProgressPage = lazy(() => import("./pages/DailyProgressPage"));
 const StockUsageReportPage = lazy(() => import("./pages/StockUsageReportPage"));
 const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
+const TeamPage = lazy(() => import("./pages/TeamPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -125,6 +126,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <StockUsageReportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/team"
+          element={
+            <ProtectedRoute>
+              <TeamPage />
             </ProtectedRoute>
           }
         />
