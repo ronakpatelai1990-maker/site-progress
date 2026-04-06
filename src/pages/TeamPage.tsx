@@ -233,7 +233,9 @@ export default function TeamPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite}>Send Invite</Button>
+            <Button onClick={handleInvite} disabled={inviting}>
+              {inviting ? 'Sending…' : 'Send Invite'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
