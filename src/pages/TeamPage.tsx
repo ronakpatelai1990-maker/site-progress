@@ -92,11 +92,27 @@ export default function TeamPage() {
     onError: () => toast.error('Failed to remove member'),
   });
 
-  const handleInvite = () => {
-    if (!inviteEmail.trim()) return;
-    toast.success(`Invitation sent to ${inviteEmail} as ${inviteRole}`);
-    setInviteEmail('');
-    setInviteOpen(false);
+  const [inviting, setInviting] = useState(false);
+
+  const handleInvite = async () => {
+    const trimmed = inviteEmail.trim();
+    if (!trimmed) return;
+    setInviting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-member', {
+        body: { email: trimmed, role: inviteRole },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(data?.message || `Invitation sent to ${trimmed}`);
+      queryClient.invalidateQueries({ queryKey: ['team_members'] });
+      setInviteEmail('');
+      setInviteOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send invitation');
+    } finally {
+      setInviting(false);
+    }
   };
 
   return (
