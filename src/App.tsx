@@ -67,6 +67,10 @@ function AppRoutes() {
           element={user ? <Navigate to="/" replace /> : <AuthPage />}
         />
         <Route
+          path="/reset-password"
+          element={<Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>}
+        />
+        <Route
           path="/"
           element={
             <ProtectedRoute>
