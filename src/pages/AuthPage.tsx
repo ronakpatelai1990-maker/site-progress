@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import logoImg from '/logo-512.png';
 
+type AuthMode = 'signin' | 'signup' | 'forgot';
+
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
