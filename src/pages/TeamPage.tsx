@@ -3,14 +3,12 @@ import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsOwner } from '@/hooks/useUserRole';
 import { RoleGate } from '@/components/RoleGate';
+import { AddEmployeeDrawer } from '@/components/AddEmployeeDrawer';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -56,12 +54,9 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline' | 'de
 export default function TeamPage() {
   const { user } = useAuth();
   const isOwner = useIsOwner();
-  
   const queryClient = useQueryClient();
   const { data: members = [], isLoading } = useTeamMembers();
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<AppRole>('contractor');
+  const [addOpen, setAddOpen] = useState(false);
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
@@ -92,36 +87,13 @@ export default function TeamPage() {
     onError: () => toast.error('Failed to remove member'),
   });
 
-  const [inviting, setInviting] = useState(false);
-
-  const handleInvite = async () => {
-    const trimmed = inviteEmail.trim();
-    if (!trimmed) return;
-    setInviting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('invite-member', {
-        body: { email: trimmed, role: inviteRole },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success(data?.message || `Invitation sent to ${trimmed}`);
-      queryClient.invalidateQueries({ queryKey: ['team_members'] });
-      setInviteEmail('');
-      setInviteOpen(false);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send invitation');
-    } finally {
-      setInviting(false);
-    }
-  };
-
   return (
     <AppShell
       title="Team"
       subtitle="Manage team members & roles"
       action={
         <RoleGate allowedRoles={['admin', 'engineer']}>
-          <Button size="sm" variant="outline" onClick={() => setInviteOpen(true)}>
+          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
             <UserPlus className="h-4 w-4" />
           </Button>
         </RoleGate>
@@ -202,43 +174,7 @@ export default function TeamPage() {
         </div>
       )}
 
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invite Team Member</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="engineer">Engineer</SelectItem>
-                  <SelectItem value="supervisor">Supervisor</SelectItem>
-                  <SelectItem value="contractor">Contractor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button onClick={handleInvite} disabled={inviting}>
-              {inviting ? 'Sending…' : 'Send Invite'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddEmployeeDrawer open={addOpen} onOpenChange={setAddOpen} />
     </AppShell>
   );
 }
