@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 
 const baseNavItems = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/my-tasks', icon: ListChecks, label: 'My Tasks' },
+  { to: '/my-tasks', icon: ListChecks, label: 'Tasks' },
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/daily', icon: ClipboardList, label: 'Daily' },
   { to: '/inventory', icon: Package, label: 'Stock' },
@@ -15,7 +15,7 @@ const baseNavItems = [
 
 const adminNavItems = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/my-tasks', icon: ListChecks, label: 'My Tasks' },
+  { to: '/my-tasks', icon: ListChecks, label: 'Tasks' },
   { to: '/sites', icon: MapPin, label: 'Sites' },
   { to: '/daily', icon: ClipboardList, label: 'Daily' },
   { to: '/inventory', icon: Package, label: 'Stock' },
@@ -28,13 +28,12 @@ export function BottomNav() {
   const { role } = useAuth();
   const { data: tasks = [] } = useTasks();
   const { data: inventory = [] } = useInventory();
-  const navItems = role === 'admin' ? adminNavItems : baseNavItems;
+  const navItems = role === 'admin' || role === 'engineer' ? adminNavItems : baseNavItems;
 
   const pendingCount = tasks.filter(t => t.status !== 'completed').length;
   const lowStockCount = getLowStockItems(inventory).length;
 
   const getBadge = (to: string) => {
-    if (to === '/' && pendingCount > 0) return pendingCount;
     if (to === '/my-tasks' && pendingCount > 0) return pendingCount;
     if (to === '/inventory' && lowStockCount > 0) return lowStockCount;
     return 0;
@@ -42,7 +41,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur pb-safe">
-      <div className="mx-auto flex max-w-lg items-center justify-around px-1">
+      <div className="mx-auto flex max-w-lg items-center overflow-x-auto scrollbar-hide px-1">
         {navItems.map(({ to, icon: Icon, label }) => {
           const badge = getBadge(to);
           return (
@@ -51,7 +50,7 @@ export function BottomNav() {
               to={to}
               end={to === '/'}
               className={({ isActive }) =>
-                `relative touch-target flex flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium transition-colors duration-200 ${
+                `relative touch-target flex flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium transition-colors duration-200 shrink-0 min-w-[52px] ${
                   isActive ? 'text-accent' : 'text-muted-foreground'
                 }`
               }
