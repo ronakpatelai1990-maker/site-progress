@@ -19,6 +19,7 @@ const DailyProgressPage = lazy(() => import("./pages/DailyProgressPage"));
 const StockUsageReportPage = lazy(() => import("./pages/StockUsageReportPage"));
 const MyTasksPage = lazy(() => import("./pages/MyTasksPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const TeamPage = lazy(() => import("./pages/TeamPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -64,6 +65,10 @@ function AppRoutes() {
         <Route
           path="/auth"
           element={user ? <Navigate to="/" replace /> : <AuthPage />}
+        />
+        <Route
+          path="/reset-password"
+          element={<Suspense fallback={<PageLoader />}><ResetPasswordPage /></Suspense>}
         />
         <Route
           path="/"

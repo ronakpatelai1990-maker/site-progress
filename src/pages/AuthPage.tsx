@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import logoImg from '/logo-512.png';
 
+type AuthMode = 'signin' | 'signup' | 'forgot';
+
 export default function AuthPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -16,7 +18,17 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
 
-    if (isSignUp) {
+    if (mode === 'forgot') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) toast.error(error.message);
+      else toast.success('Check your email for a password reset link');
+      setLoading(false);
+      return;
+    }
+
+    if (mode === 'signup') {
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -42,12 +54,12 @@ export default function AuthPage() {
           <img src={logoImg} alt="Site Stock Sync" className="mx-auto h-20 w-20 rounded-2xl" />
           <h1 className="mt-5 text-2xl font-bold text-foreground">Site Stock Sync</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            {isSignUp ? 'Create your account' : 'Sign in to continue'}
+            {mode === 'signup' ? 'Create your account' : mode === 'forgot' ? 'Reset your password' : 'Sign in to continue'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && (
+          {mode === 'signup' && (
             <div className="relative">
               <Input
                 placeholder=" "
@@ -76,21 +88,36 @@ export default function AuthPage() {
               Email
             </label>
           </div>
-          <div className="relative">
-            <Input
-              type="password"
-              placeholder=" "
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="min-h-[52px] rounded-xl pt-5 pb-2"
-              id="password"
-            />
-            <label htmlFor="password" className="absolute left-3 top-1.5 text-[10px] font-medium text-muted-foreground">
-              Password
-            </label>
-          </div>
+          {mode !== 'forgot' && (
+            <div className="relative">
+              <Input
+                type="password"
+                placeholder=" "
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="min-h-[52px] rounded-xl pt-5 pb-2"
+                id="password"
+              />
+              <label htmlFor="password" className="absolute left-3 top-1.5 text-[10px] font-medium text-muted-foreground">
+                Password
+              </label>
+            </div>
+          )}
+
+          {mode === 'signin' && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => setMode('forgot')}
+                className="text-xs font-medium text-accent hover:underline underline-offset-2"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           <Button
             type="submit"
             className="min-h-[52px] w-full rounded-xl gradient-amber text-accent-foreground border-0 text-base font-bold"
@@ -98,18 +125,33 @@ export default function AuthPage() {
           >
             {loading ? (
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-accent-foreground border-t-transparent" />
-            ) : isSignUp ? 'Sign Up' : 'Sign In'}
+            ) : mode === 'signup' ? 'Sign Up' : mode === 'forgot' ? 'Send Reset Link' : 'Sign In'}
           </Button>
         </form>
 
         <p className="text-center text-sm text-muted-foreground">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="font-semibold text-accent underline-offset-2 hover:underline"
-          >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
-          </button>
+          {mode === 'forgot' ? (
+            <>
+              Remember your password?{' '}
+              <button onClick={() => setMode('signin')} className="font-semibold text-accent underline-offset-2 hover:underline">
+                Sign In
+              </button>
+            </>
+          ) : mode === 'signup' ? (
+            <>
+              Already have an account?{' '}
+              <button onClick={() => setMode('signin')} className="font-semibold text-accent underline-offset-2 hover:underline">
+                Sign In
+              </button>
+            </>
+          ) : (
+            <>
+              Don't have an account?{' '}
+              <button onClick={() => setMode('signup')} className="font-semibold text-accent underline-offset-2 hover:underline">
+                Sign Up
+              </button>
+            </>
+          )}
         </p>
       </div>
     </div>
