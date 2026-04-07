@@ -16,40 +16,67 @@ export type Database = {
     Tables: {
       daily_progress_reports: {
         Row: {
+          bungalow_no: string | null
           created_at: string
           created_by: string
           id: string
+          issues: string | null
           manpower: Json
           materials_used: Json
           photos: string[]
           report_date: string
+          room_no: string | null
           site_id: string
+          status: string | null
+          tomorrow_plan: string | null
           updated_at: string
+          weather: string | null
+          work_completed: Json | null
           work_description: string
+          work_hours: number | null
+          workers_count: number | null
         }
         Insert: {
+          bungalow_no?: string | null
           created_at?: string
           created_by: string
           id?: string
+          issues?: string | null
           manpower?: Json
           materials_used?: Json
           photos?: string[]
           report_date?: string
+          room_no?: string | null
           site_id: string
+          status?: string | null
+          tomorrow_plan?: string | null
           updated_at?: string
+          weather?: string | null
+          work_completed?: Json | null
           work_description: string
+          work_hours?: number | null
+          workers_count?: number | null
         }
         Update: {
+          bungalow_no?: string | null
           created_at?: string
           created_by?: string
           id?: string
+          issues?: string | null
           manpower?: Json
           materials_used?: Json
           photos?: string[]
           report_date?: string
+          room_no?: string | null
           site_id?: string
+          status?: string | null
+          tomorrow_plan?: string | null
           updated_at?: string
+          weather?: string | null
+          work_completed?: Json | null
           work_description?: string
+          work_hours?: number | null
+          workers_count?: number | null
         }
         Relationships: [
           {
