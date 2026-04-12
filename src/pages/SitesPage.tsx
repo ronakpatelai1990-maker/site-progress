@@ -6,13 +6,14 @@ import { FAB } from '@/components/FAB';
 import { CreateSiteDrawer } from '@/components/CreateSiteDrawer';
 import { CreateTaskDrawer } from '@/components/CreateTaskDrawer';
 import { EditSiteDrawer } from '@/components/EditSiteDrawer';
-import { useAuth } from '@/hooks/useAuth';
+import { useCanEdit, useIsOwner } from '@/hooks/useUserRole';
 import { useSites, useTasks, useProfiles, useInventory, Task } from '@/hooks/useSupabaseData';
 import { MapPin, Calendar, User, Plus, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function SitesPage() {
-  const { role } = useAuth();
+  const canEdit = useCanEdit();
+  const isOwner = useIsOwner();
   const { data: sites = [] } = useSites();
   const { data: tasks = [] } = useTasks();
   const { data: profiles = [] } = useProfiles();
@@ -25,7 +26,7 @@ export default function SitesPage() {
 
   const siteTasks = selectedSite ? tasks.filter(t => t.site_id === selectedSite) : [];
   const site = selectedSite ? sites.find(s => s.id === selectedSite) : null;
-  const canEdit = role === 'admin' || role === 'engineer';
+  const canDeleteSites = isOwner;
 
   const editSiteObj = editingSite ? sites.find(s => s.id === editingSite) : null;
 
@@ -144,6 +145,7 @@ export default function SitesPage() {
         site={editSiteObj || null} profiles={profiles}
         open={!!editingSite} onOpenChange={(o) => !o && setEditingSite(null)}
         onDeleted={() => setSelectedSite(null)}
+        canDelete={canDeleteSites}
       />
     </AppShell>
   );

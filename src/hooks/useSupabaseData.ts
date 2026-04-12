@@ -4,7 +4,10 @@ import type { Tables, TablesInsert, Enums } from '@/integrations/supabase/types'
 
 export type Site = Tables<'sites'>;
 export type Task = Tables<'tasks'>;
-export type InventoryItem = Tables<'inventory'>;
+export type InventoryItem = Tables<'inventory'> & {
+  /** Optional column — add in Supabase if missing: `minimum_quantity` */
+  minimum_quantity?: number | null;
+};
 export type MaterialUsage = Tables<'material_usage'>;
 export type Profile = Tables<'profiles'>;
 export type TaskStatus = Enums<'task_status'>;
@@ -185,6 +188,12 @@ export function useDeleteInventoryItem() {
 }
 
 // Helper to get low stock items from already-fetched data
+export function getInventoryMinimumThreshold(item: InventoryItem): number {
+  const mq = (item as InventoryItem).minimum_quantity;
+  if (typeof mq === 'number' && !Number.isNaN(mq)) return mq;
+  return item.min_stock_level;
+}
+
 export function getLowStockItems(items: InventoryItem[]) {
-  return items.filter(i => i.available_qty < i.min_stock_level);
+  return items.filter(i => i.available_qty < getInventoryMinimumThreshold(i));
 }

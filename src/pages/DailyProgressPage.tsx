@@ -1,181 +1,256 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
-import { useSites, useInventory } from '@/hooks/useSupabaseData';
-import { useDailyReports, useTodayReport, useUpsertDailyReport, useUpdateDailyReport, useDeleteDailyReport } from '@/hooks/useDailyReports';
-import type { DailyReport, WorkCompletedRow } from '@/hooks/useDailyReports';
+import { useSites } from '@/hooks/useSupabaseData';
+import {
+  useDailyReports,
+  useTodayReport,
+  useUpsertDailyReport,
+  useDeleteDailyReport,
+  type DailyReport,
+  type DailyReportMaterialRow,
+  type DailyReportWorkRow,
+} from '@/hooks/useDailyReports';
 import { FAB } from '@/components/FAB';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ClipboardList, Users, Package, Calendar, Pencil, Trash2, Plus, Cloud, CloudRain, Sun, CloudSun, Download, FileSpreadsheet, AlertTriangle, ArrowRight, Save } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ClipboardList, Download, Eye, FileSpreadsheet, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportReportsToExcel, exportSingleReport } from '@/lib/exportDailyReport';
+import { hasPermission } from '@/lib/roles';
 
-interface ManpowerEntry { role: string; count: number }
-interface MaterialEntry { inventory_id: string; qty_used: number; unit: string }
+const WEATHER_OPTIONS = ['Sunny', 'Cloudy', 'Rainy', 'Stormy'] as const;
+const WORK_STATUS = ['Completed', 'In Progress', 'Delayed'] as const;
 
-const WEATHER_OPTIONS = [
-  { value: 'sunny', label: 'Sunny', icon: Sun },
-  { value: 'partly_cloudy', label: 'Partly Cloudy', icon: CloudSun },
-  { value: 'cloudy', label: 'Cloudy', icon: Cloud },
-  { value: 'rainy', label: 'Rainy', icon: CloudRain },
-];
+function emptyWorkRow(): DailyReportWorkRow {
+  return { description: '', location: '', quantity: null, unit: '', status: '', assigned_to: '' };
+}
 
-const DEFAULT_ROLES = ['Mason', 'Helper', 'Carpenter', 'Plumber', 'Electrician', 'Painter', 'Welder', 'Operator'];
+function emptyMaterialRow(): DailyReportMaterialRow {
+  return { material_name: '', quantity_used: null, unit: '', remaining_stock: null };
+}
 
 export default function DailyProgressPage() {
-  const { user, role } = useAuth();
+  const { profile, appRole } = useAuth();
   const { data: sites = [] } = useSites();
-  const { data: inventory = [] } = useInventory();
   const { data: reports = [], isLoading } = useDailyReports();
   const deleteReport = useDeleteDailyReport();
-  const upsertReport = useUpsertDailyReport();
-  const updateReport = useUpdateDailyReport();
+  const saveReport = useUpsertDailyReport();
 
-  const canCreate = role === 'admin' || role === 'engineer';
-  const canManage = role === 'admin' || role === 'engineer';
-
-  // Form state
-  const [editing, setEditing] = useState(false);
-  const [editingReport, setEditingReport] = useState<DailyReport | null>(null);
-  const [siteId, setSiteId] = useState('');
-  const [weather, setWeather] = useState('sunny');
-  const [workersCount, setWorkersCount] = useState(0);
-  const [workHours, setWorkHours] = useState(8);
-  const [workDescription, setWorkDescription] = useState('');
-  const [workCompleted, setWorkCompleted] = useState<WorkCompletedRow[]>([{ description: '', location: '', percentage: 0 }]);
-  const [manpower, setManpower] = useState<ManpowerEntry[]>([{ role: '', count: 1 }]);
-  const [materials, setMaterials] = useState<MaterialEntry[]>([]);
-  const [issues, setIssues] = useState('');
-  const [tomorrowPlan, setTomorrowPlan] = useState('');
-  const [activeTab, setActiveTab] = useState('conditions');
-  const [saving, setSaving] = useState(false);
+  const canEdit = hasPermission(appRole, 'edit:daily');
+  const canDelete = appRole === 'Owner';
 
   const today = format(new Date(), 'yyyy-MM-dd');
+
+  const [mode, setMode] = useState<'list' | 'edit' | 'readonly'>('list');
+  const [viewReport, setViewReport] = useState<DailyReport | null>(null);
+
+  const [siteId, setSiteId] = useState('');
+  const [reportId, setReportId] = useState<string | undefined>(undefined);
+
+  const [weather, setWeather] = useState<string>(WEATHER_OPTIONS[0]);
+  const [temperature, setTemperature] = useState<string>('');
+  const [workStart, setWorkStart] = useState('');
+  const [workEnd, setWorkEnd] = useState('');
+  const [totalWorkers, setTotalWorkers] = useState<string>('');
+
+  const [workRows, setWorkRows] = useState<DailyReportWorkRow[]>([emptyWorkRow()]);
+  const [materialRows, setMaterialRows] = useState<DailyReportMaterialRow[]>([]);
+
+  const [issues, setIssues] = useState('');
+  const [safetyNotes, setSafetyNotes] = useState('');
+  const [visitorNotes, setVisitorNotes] = useState('');
+
+  const [tomorrowPlan, setTomorrowPlan] = useState('');
+  const [expectedWorkers, setExpectedWorkers] = useState<string>('');
+
+  const [saving, setSaving] = useState(false);
+
   const { data: todayReport, refetch: refetchToday } = useTodayReport(siteId, today);
   const autoSaveRef = useRef<ReturnType<typeof setInterval>>();
   const lastSaveRef = useRef<string>('');
 
-  // Load existing report for today when site changes
-  useEffect(() => {
-    if (todayReport && editing && !editingReport) {
-      setEditingReport(todayReport);
-      loadReportIntoForm(todayReport);
-      toast.info("Today's report loaded for editing");
-    }
-  }, [todayReport, editing]);
+  const siteMap = useMemo(() => Object.fromEntries(sites.map(s => [s.id, s.name])), [sites]);
 
-  const loadReportIntoForm = (r: DailyReport) => {
-    setWeather(r.weather || 'sunny');
-    setWorkersCount(r.workers_count || 0);
-    setWorkHours(r.work_hours || 8);
-    setWorkDescription(r.work_description || '');
-    setWorkCompleted((r.work_completed as WorkCompletedRow[])?.length ? r.work_completed as WorkCompletedRow[] : [{ description: '', location: '', percentage: 0 }]);
-    setManpower((r.manpower as ManpowerEntry[])?.length ? r.manpower as ManpowerEntry[] : [{ role: '', count: 1 }]);
-    setMaterials((r.materials_used as MaterialEntry[]) || []);
-    setIssues(r.issues || '');
-    setTomorrowPlan(r.tomorrow_plan || '');
+  const hydrateFromReport = useCallback((r: DailyReport) => {
+    setReportId(r.id);
     setSiteId(r.site_id);
-  };
+    setWeather((r.weather as any) || WEATHER_OPTIONS[0]);
+    setTemperature(r.temperature === null || r.temperature === undefined ? '' : String(r.temperature));
+    setWorkStart(r.work_start_time || '');
+    setWorkEnd(r.work_end_time || '');
+    setTotalWorkers(r.total_workers === null || r.total_workers === undefined ? '' : String(r.total_workers));
 
-  const resetForm = () => {
-    setWeather('sunny');
-    setWorkersCount(0);
-    setWorkHours(8);
-    setWorkDescription('');
-    setWorkCompleted([{ description: '', location: '', percentage: 0 }]);
-    setManpower([{ role: '', count: 1 }]);
-    setMaterials([]);
-    setIssues('');
-    setTomorrowPlan('');
-    setSiteId('');
-    setEditingReport(null);
-    setEditing(false);
-    setActiveTab('conditions');
-  };
+    const wr = (r.work_rows || []).length ? (r.work_rows || []) : [emptyWorkRow()];
+    setWorkRows(wr);
 
-  const getFormData = useCallback(() => ({
-    site_id: siteId,
-    report_date: today,
-    weather,
-    workers_count: workersCount,
-    work_hours: workHours,
-    work_description: workDescription,
-    work_completed: workCompleted.filter(w => w.description.trim()),
-    manpower: manpower.filter(m => m.role.trim() && m.count > 0),
-    materials_used: materials.filter(m => m.inventory_id && m.qty_used > 0),
-    issues,
-    tomorrow_plan: tomorrowPlan,
-    photos: editingReport?.photos || [],
-    created_by: user!.id,
-    status: 'draft',
-  }), [siteId, today, weather, workersCount, workHours, workDescription, workCompleted, manpower, materials, issues, tomorrowPlan, editingReport, user]);
+    setMaterialRows((r.material_rows || []).length ? (r.material_rows || []) : []);
+
+    setIssues(r.issues || '');
+    setSafetyNotes(r.safety_notes || '');
+    setVisitorNotes(r.visitor_notes || '');
+
+    setTomorrowPlan(r.tomorrow_plan || '');
+    setExpectedWorkers(r.expected_workers === null || r.expected_workers === undefined ? '' : String(r.expected_workers));
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'edit') return;
+    if (!siteId) return;
+    if (!todayReport) return;
+    hydrateFromReport(todayReport);
+  }, [mode, siteId, todayReport, hydrateFromReport]);
+
+  const getPayload = useCallback(
+    (status: string) => {
+      const tw = Number(totalWorkers);
+      const ew = Number(expectedWorkers);
+      const temp = temperature.trim() === '' ? null : Number(temperature);
+
+      const normalizedWork = workRows.map(w => ({
+        ...w,
+        status: (w.status || '') as any,
+        quantity: w.quantity === null || w.quantity === (undefined as any) ? null : Number(w.quantity),
+      }));
+
+      const normalizedMaterials = materialRows.map(m => ({
+        ...m,
+        quantity_used: m.quantity_used === null ? null : Number(m.quantity_used),
+        remaining_stock: m.remaining_stock === null ? null : Number(m.remaining_stock),
+      }));
+
+      return {
+        id: reportId,
+        site_id: siteId,
+        report_date: today,
+        submitted_by_name: profile?.name ?? null,
+        weather,
+        temperature: Number.isFinite(temp as number) ? (temp as number) : null,
+        work_start_time: workStart || null,
+        work_end_time: workEnd || null,
+        total_workers: Number.isFinite(tw) ? tw : null,
+        issues,
+        safety_notes: safetyNotes,
+        visitor_notes: visitorNotes,
+        tomorrow_plan: tomorrowPlan,
+        expected_workers: Number.isFinite(ew) ? ew : null,
+        status,
+        work_rows: normalizedWork,
+        material_rows: normalizedMaterials,
+      };
+    },
+    [
+      reportId,
+      siteId,
+      today,
+      profile?.name,
+      weather,
+      temperature,
+      workStart,
+      workEnd,
+      totalWorkers,
+      issues,
+      safetyNotes,
+      visitorNotes,
+      tomorrowPlan,
+      expectedWorkers,
+      workRows,
+      materialRows,
+    ]
+  );
 
   // Auto-save draft every 60 seconds
   useEffect(() => {
-    if (!editing || !siteId) return;
+    if (mode !== 'edit' || !siteId || !canEdit) return;
     autoSaveRef.current = setInterval(async () => {
-      const formData = getFormData();
-      const snapshot = JSON.stringify(formData);
+      const payload = getPayload('draft');
+      const snapshot = JSON.stringify(payload);
       if (snapshot === lastSaveRef.current) return;
       lastSaveRef.current = snapshot;
       try {
-        if (editingReport) {
-          await upsertReport.mutateAsync({ ...formData, id: editingReport.id, status: 'draft' });
-        } else {
-          await upsertReport.mutateAsync(formData);
-        }
-        toast.success('Draft auto-saved', { duration: 1500 });
-        refetchToday();
+        const id = await saveReport.mutateAsync(payload as any);
+        setReportId(id as any);
+        await refetchToday();
+        toast.success('Draft auto-saved', { duration: 1200 });
       } catch {
-        // silent fail for auto-save
+        // silent
       }
     }, 60000);
-    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
-  }, [editing, siteId, getFormData, editingReport]);
+    return () => {
+      if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+    };
+  }, [mode, siteId, canEdit, getPayload, saveReport, refetchToday]);
+
+  const startNew = () => {
+    setMode('edit');
+    setViewReport(null);
+    setReportId(undefined);
+    setSiteId('');
+    setWeather(WEATHER_OPTIONS[0]);
+    setTemperature('');
+    setWorkStart('');
+    setWorkEnd('');
+    setTotalWorkers('');
+    setWorkRows([emptyWorkRow()]);
+    setMaterialRows([]);
+    setIssues('');
+    setSafetyNotes('');
+    setVisitorNotes('');
+    setTomorrowPlan('');
+    setExpectedWorkers('');
+  };
+
+  const openReadonly = (r: DailyReport) => {
+    setViewReport(r);
+    setMode('readonly');
+  };
 
   const handleSaveDraft = async () => {
-    if (!siteId) { toast.error('Select a site first'); return; }
+    if (!siteId) {
+      toast.error('Select a site first');
+      return;
+    }
+    if (!workRows.some(w => w.description.trim())) {
+      toast.error('Add at least one work row');
+      return;
+    }
     setSaving(true);
     try {
-      const formData = getFormData();
-      if (editingReport) {
-        await updateReport.mutateAsync({ ...formData, id: editingReport.id, status: 'draft' });
-      } else {
-        await upsertReport.mutateAsync(formData);
-      }
+      const id = await saveReport.mutateAsync(getPayload('draft') as any);
+      setReportId(id as any);
       toast.success('Draft saved');
-      refetchToday();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save draft');
+      await refetchToday();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save draft');
     }
     setSaving(false);
   };
 
   const handleSubmit = async () => {
-    if (!siteId || !workDescription.trim()) {
-      toast.error('Please fill site and work description');
+    if (!siteId) {
+      toast.error('Select a site first');
+      return;
+    }
+    if (!workRows.some(w => w.description.trim())) {
+      toast.error('Add at least one work row');
       return;
     }
     setSaving(true);
     try {
-      const formData = getFormData();
-      formData.status = 'submitted';
-      if (editingReport) {
-        await updateReport.mutateAsync({ ...formData, id: editingReport.id });
-      } else {
-        await upsertReport.mutateAsync(formData);
-      }
-      toast.success('Report submitted!');
-      resetForm();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to submit');
+      const id = await saveReport.mutateAsync(getPayload('submitted') as any);
+      setReportId(id as any);
+      toast.success('Report submitted');
+      setMode('list');
+      setReportId(undefined);
+      setSiteId('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to submit');
     }
     setSaving(false);
   };
@@ -184,246 +259,418 @@ export default function DailyProgressPage() {
     if (!confirm('Delete this report?')) return;
     deleteReport.mutate(report.id, {
       onSuccess: () => toast.success('Report deleted'),
-      onError: (err: any) => toast.error(err.message),
+      onError: (err: any) => toast.error(err?.message || 'Failed to delete'),
     });
   };
 
-  const handleEditExisting = (report: DailyReport) => {
-    setEditingReport(report);
-    loadReportIntoForm(report);
-    setEditing(true);
-  };
-
-  const handleNewReport = () => {
-    resetForm();
-    setEditing(true);
-  };
-
-  const getSiteName = (id: string) => sites.find(s => s.id === id)?.name || 'Unknown';
-  const getItemName = (id: string) => inventory.find(i => i.id === id)?.item_name || 'Unknown';
-
-  const siteMap = Object.fromEntries(sites.map(s => [s.id, s.name]));
-  const invMap = Object.fromEntries(inventory.map(i => [i.id, i.item_name]));
-
-  // Work completed helpers
-  const addWorkRow = () => setWorkCompleted([...workCompleted, { description: '', location: '', percentage: 0 }]);
-  const removeWorkRow = (i: number) => setWorkCompleted(workCompleted.filter((_, idx) => idx !== i));
-  const updateWorkRow = (i: number, field: keyof WorkCompletedRow, value: string | number) => {
-    const updated = [...workCompleted];
-    if (field === 'percentage') updated[i].percentage = Number(value) || 0;
-    else (updated[i] as any)[field] = value;
-    setWorkCompleted(updated);
-  };
-
-  // Manpower helpers
-  const addManpower = () => setManpower([...manpower, { role: '', count: 1 }]);
-  const removeManpower = (i: number) => setManpower(manpower.filter((_, idx) => idx !== i));
-  const updateManpower = (i: number, field: keyof ManpowerEntry, value: string | number) => {
-    const updated = [...manpower];
-    if (field === 'count') updated[i].count = Number(value) || 0;
-    else updated[i].role = value as string;
-    setManpower(updated);
-  };
-
-  // Material helpers
-  const addMaterial = () => setMaterials([...materials, { inventory_id: '', qty_used: 0, unit: '' }]);
-  const removeMaterial = (i: number) => setMaterials(materials.filter((_, idx) => idx !== i));
-  const updateMaterial = (i: number, field: keyof MaterialEntry, value: string | number) => {
-    const updated = [...materials];
-    if (field === 'qty_used') updated[i].qty_used = Number(value) || 0;
-    else if (field === 'inventory_id') {
-      updated[i].inventory_id = value as string;
-      const item = inventory.find(inv => inv.id === value);
-      if (item) updated[i].unit = item.unit;
-    } else updated[i].unit = value as string;
-    setMaterials(updated);
-  };
-
-  // === FORM VIEW ===
-  if (editing) {
+  // === READONLY ===
+  if (mode === 'readonly' && viewReport) {
+    const siteName = siteMap[viewReport.site_id] || 'Unknown';
     return (
-      <AppShell title={editingReport ? 'Edit Report' : 'New Daily Report'} subtitle={today}>
-        {/* Site selector */}
-        <div className="mb-4">
-          <label className="label-meta mb-1.5 block">Site *</label>
-          <Select value={siteId} onValueChange={v => { setSiteId(v); setEditingReport(null); }} disabled={!!editingReport}>
-            <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select site" /></SelectTrigger>
-            <SelectContent>
-              {sites.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <AppShell title="Daily Report" subtitle={`${siteName} · ${viewReport.report_date}`} action={<Button variant="outline" size="sm" onClick={() => setMode('list')}>Back</Button>}>
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Summary</CardTitle>
+              <Badge variant={viewReport.status === 'submitted' ? 'default' : 'secondary'}>{viewReport.status || 'draft'}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p className="text-muted-foreground">
+              Submitted by: <span className="text-foreground font-medium">{viewReport.submitted_by_name || '—'}</span>
+            </p>
+            <p className="text-muted-foreground">
+              Weather: <span className="text-foreground font-medium">{viewReport.weather || '—'}</span>
+              {viewReport.temperature !== null && viewReport.temperature !== undefined && (
+                <span className="text-foreground font-medium"> · {viewReport.temperature}°</span>
+              )}
+            </p>
+            <p className="text-muted-foreground">
+              Hours:{' '}
+              <span className="text-foreground font-medium">
+                {(viewReport.work_start_time || '—') + ' → ' + (viewReport.work_end_time || '—')}
+              </span>
+            </p>
+            <p className="text-muted-foreground">
+              Workers: <span className="text-foreground font-medium">{viewReport.total_workers ?? '—'}</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="mt-4 space-y-3">
+          <h3 className="label-meta">Work completed</h3>
+          {(viewReport.work_rows || []).map((w, idx) => (
+            <div key={idx} className="rounded-lg border border-border p-3 text-sm">
+              <p className="font-medium text-foreground">{w.description}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {w.location} · {w.quantity ?? ''} {w.unit} · {w.status || '—'} · {w.assigned_to || '—'}
+              </p>
+            </div>
+          ))}
         </div>
 
-        {siteId && (
-          <>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-5 mb-4">
-                <TabsTrigger value="conditions" className="text-xs">Site</TabsTrigger>
-                <TabsTrigger value="work" className="text-xs">Work</TabsTrigger>
-                <TabsTrigger value="materials" className="text-xs">Material</TabsTrigger>
-                <TabsTrigger value="manpower" className="text-xs">Team</TabsTrigger>
-                <TabsTrigger value="notes" className="text-xs">Notes</TabsTrigger>
-              </TabsList>
+        <div className="mt-4 space-y-3">
+          <h3 className="label-meta">Materials used</h3>
+          {(viewReport.material_rows || []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">None</p>
+          ) : (
+            (viewReport.material_rows || []).map((m, idx) => (
+              <div key={idx} className="rounded-lg border border-border p-3 text-sm">
+                <p className="font-medium text-foreground">{m.material_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used: {m.quantity_used ?? '—'} {m.unit} · Remaining: {m.remaining_stock ?? '—'}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
 
-              {/* Site Conditions */}
-              <TabsContent value="conditions" className="space-y-4">
-                <div>
-                  <label className="label-meta mb-1.5 block">Weather</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {WEATHER_OPTIONS.map(w => (
-                      <button
-                        key={w.value}
-                        onClick={() => setWeather(w.value)}
-                        className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 transition-colors ${weather === w.value ? 'border-accent bg-accent/10' : 'border-border'}`}
-                      >
-                        <w.icon className="h-5 w-5" />
-                        <span className="text-[10px]">{w.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label-meta mb-1.5 block">Workers on Site</label>
-                    <Input type="number" min={0} value={workersCount || ''} onChange={e => setWorkersCount(Number(e.target.value) || 0)} className="min-h-[48px]" />
-                  </div>
-                  <div>
-                    <label className="label-meta mb-1.5 block">Work Hours</label>
-                    <Input type="number" min={0} max={24} step={0.5} value={workHours} onChange={e => setWorkHours(Number(e.target.value) || 0)} className="min-h-[48px]" />
-                  </div>
-                </div>
-              </TabsContent>
+        <div className="mt-4 space-y-2">
+          <h3 className="label-meta">Issues</h3>
+          <p className="text-sm whitespace-pre-wrap">{viewReport.issues || '—'}</p>
+          <p className="text-sm whitespace-pre-wrap"><span className="label-meta">Safety</span><br />{viewReport.safety_notes || '—'}</p>
+          <p className="text-sm whitespace-pre-wrap"><span className="label-meta">Visitors</span><br />{viewReport.visitor_notes || '—'}</p>
+        </div>
 
-              {/* Work Completed */}
-              <TabsContent value="work" className="space-y-4">
-                <div>
-                  <label className="label-meta mb-1.5 block">Summary *</label>
-                  <Textarea className="min-h-[80px]" value={workDescription} onChange={e => setWorkDescription(e.target.value)} placeholder="Overall work summary..." maxLength={2000} />
-                </div>
-                <div className="space-y-3">
-                  <label className="label-meta block">Work Items</label>
-                  {workCompleted.map((w, i) => (
-                    <div key={i} className="rounded-lg border border-border p-3 space-y-2">
-                      <Input placeholder="Work description" value={w.description} onChange={e => updateWorkRow(i, 'description', e.target.value)} className="min-h-[44px]" />
-                      <div className="flex gap-2">
-                        <Input placeholder="Location" value={w.location} onChange={e => updateWorkRow(i, 'location', e.target.value)} className="min-h-[44px] flex-1" />
-                        <div className="flex items-center gap-1 w-24">
-                          <Input type="number" min={0} max={100} value={w.percentage || ''} onChange={e => updateWorkRow(i, 'percentage', e.target.value)} className="min-h-[44px]" />
-                          <span className="text-xs text-muted-foreground">%</span>
-                        </div>
-                        {workCompleted.length > 1 && (
-                          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-destructive" onClick={() => removeWorkRow(i)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <Button variant="outline" className="w-full min-h-[44px]" onClick={addWorkRow}>
-                    <Plus className="mr-1.5 h-4 w-4" /> Add Work Item
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Materials */}
-              <TabsContent value="materials" className="space-y-3">
-                {materials.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">No materials. Tap + to add.</p>
-                )}
-                {materials.map((m, i) => {
-                  const item = inventory.find(inv => inv.id === m.inventory_id);
-                  return (
-                    <div key={i} className="rounded-lg border border-border p-3 space-y-2">
-                      <Select value={m.inventory_id} onValueChange={v => updateMaterial(i, 'inventory_id', v)}>
-                        <SelectTrigger className="min-h-[48px]"><SelectValue placeholder="Select item" /></SelectTrigger>
-                        <SelectContent>
-                          {inventory.map(inv => (
-                            <SelectItem key={inv.id} value={inv.id}>{inv.item_name} ({inv.available_qty} {inv.unit})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex items-center gap-2">
-                        <Input type="number" min={0} max={item?.available_qty} value={m.qty_used || ''} onChange={e => updateMaterial(i, 'qty_used', e.target.value)} placeholder="Qty" className="min-h-[44px] flex-1" />
-                        <span className="text-sm text-muted-foreground w-12">{m.unit || 'unit'}</span>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-destructive" onClick={() => removeMaterial(i)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <Button variant="outline" className="w-full min-h-[44px]" onClick={addMaterial}>
-                  <Plus className="mr-1.5 h-4 w-4" /> Add Material
-                </Button>
-              </TabsContent>
-
-              {/* Manpower */}
-              <TabsContent value="manpower" className="space-y-3">
-                {manpower.map((m, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Select value={m.role} onValueChange={v => updateManpower(i, 'role', v)}>
-                      <SelectTrigger className="min-h-[48px] flex-1"><SelectValue placeholder="Role" /></SelectTrigger>
-                      <SelectContent>
-                        {DEFAULT_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Input type="number" min={1} value={m.count} onChange={e => updateManpower(i, 'count', e.target.value)} className="min-h-[48px] w-20" />
-                    {manpower.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 text-destructive" onClick={() => removeManpower(i)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button variant="outline" className="w-full min-h-[44px]" onClick={addManpower}>
-                  <Plus className="mr-1.5 h-4 w-4" /> Add Role
-                </Button>
-              </TabsContent>
-
-              {/* Notes */}
-              <TabsContent value="notes" className="space-y-4">
-                <div>
-                  <label className="label-meta mb-1.5 block flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5" /> Issues / Observations
-                  </label>
-                  <Textarea className="min-h-[100px]" value={issues} onChange={e => setIssues(e.target.value)} placeholder="Any issues, delays, safety concerns..." />
-                </div>
-                <div>
-                  <label className="label-meta mb-1.5 block flex items-center gap-1.5">
-                    <ArrowRight className="h-3.5 w-3.5" /> Tomorrow's Plan
-                  </label>
-                  <Textarea className="min-h-[100px]" value={tomorrowPlan} onChange={e => setTomorrowPlan(e.target.value)} placeholder="Planned activities for tomorrow..." />
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {/* Action buttons */}
-            <div className="flex gap-2 mt-6 pb-4">
-              <Button variant="outline" className="flex-1 min-h-[48px]" onClick={resetForm}>Cancel</Button>
-              <Button variant="outline" className="min-h-[48px]" onClick={handleSaveDraft} disabled={saving}>
-                <Save className="mr-1.5 h-4 w-4" /> Draft
-              </Button>
-              <Button className="flex-1 min-h-[48px] bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSubmit} disabled={saving}>
-                {saving ? 'Saving...' : 'Submit'}
-              </Button>
-            </div>
-          </>
-        )}
+        <div className="mt-4 space-y-2">
+          <h3 className="label-meta">Tomorrow's plan</h3>
+          <p className="text-sm whitespace-pre-wrap">{viewReport.tomorrow_plan || '—'}</p>
+          <p className="text-sm text-muted-foreground">Expected workers: {viewReport.expected_workers ?? '—'}</p>
+        </div>
       </AppShell>
     );
   }
 
-  // === LIST VIEW ===
-  return (
-    <AppShell title="Daily Progress" subtitle="Site progress reports">
-      {/* Export All button */}
-      {reports.length > 0 && (
-        <div className="flex justify-end mb-3">
-          <Button variant="outline" size="sm" onClick={() => exportReportsToExcel(reports, siteMap, invMap)}>
-            <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Export All
-          </Button>
+  // === EDIT ===
+  if (mode === 'edit') {
+    return (
+      <AppShell title={reportId ? 'Edit Daily Report' : 'New Daily Report'} subtitle={today}>
+        <div className="mb-4 space-y-2">
+          <p className="label-meta">Site</p>
+          <Select
+            value={siteId}
+            onValueChange={v => {
+              setSiteId(v);
+              setReportId(undefined);
+            }}
+            disabled={!canEdit}
+          >
+            <SelectTrigger className="min-h-[48px]">
+              <SelectValue placeholder="Select site" />
+            </SelectTrigger>
+            <SelectContent>
+              {sites.map(s => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
+
+        {!siteId ? (
+          <div className="card-elevated p-6 text-sm text-muted-foreground">Select a site to start the report.</div>
+        ) : (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Header</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="text-muted-foreground">
+                  Site: <span className="text-foreground font-medium">{sites.find(s => s.id === siteId)?.name}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Date: <span className="text-foreground font-medium">{today}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Submitted by: <span className="text-foreground font-medium">{profile?.name || '—'}</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Site conditions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <p className="label-meta">Weather</p>
+                  <Select value={weather} onValueChange={setWeather} disabled={!canEdit}>
+                    <SelectTrigger className="min-h-[44px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WEATHER_OPTIONS.map(w => (
+                        <SelectItem key={w} value={w}>
+                          {w}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className="label-meta">Temperature</p>
+                    <Input value={temperature} onChange={e => setTemperature(e.target.value)} placeholder="e.g. 32" disabled={!canEdit} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="label-meta">Total workers</p>
+                    <Input value={totalWorkers} onChange={e => setTotalWorkers(e.target.value)} inputMode="numeric" disabled={!canEdit} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <p className="label-meta">Work start</p>
+                    <Input type="time" value={workStart} onChange={e => setWorkStart(e.target.value)} disabled={!canEdit} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="label-meta">Work end</p>
+                    <Input type="time" value={workEnd} onChange={e => setWorkEnd(e.target.value)} disabled={!canEdit} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Work completed</CardTitle>
+                {canEdit && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setWorkRows([...workRows, emptyWorkRow()])}>
+                    <Plus className="h-4 w-4 mr-1" /> Add Row
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workRows.map((w, idx) => (
+                  <div key={idx} className="rounded-lg border border-border p-3 space-y-2">
+                    <Textarea
+                      value={w.description}
+                      onChange={e => {
+                        const next = [...workRows];
+                        next[idx].description = e.target.value;
+                        setWorkRows(next);
+                      }}
+                      placeholder="Work description"
+                      disabled={!canEdit}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        value={w.location}
+                        onChange={e => {
+                          const next = [...workRows];
+                          next[idx].location = e.target.value;
+                          setWorkRows(next);
+                        }}
+                        placeholder="Location"
+                        disabled={!canEdit}
+                      />
+                      <Input
+                        value={w.assigned_to}
+                        onChange={e => {
+                          const next = [...workRows];
+                          next[idx].assigned_to = e.target.value;
+                          setWorkRows(next);
+                        }}
+                        placeholder="Assigned to"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        value={w.quantity === null || w.quantity === undefined ? '' : String(w.quantity)}
+                        onChange={e => {
+                          const next = [...workRows];
+                          next[idx].quantity = e.target.value === '' ? null : Number(e.target.value);
+                          setWorkRows(next);
+                        }}
+                        placeholder="Qty"
+                        inputMode="decimal"
+                        disabled={!canEdit}
+                      />
+                      <Input
+                        value={w.unit}
+                        onChange={e => {
+                          const next = [...workRows];
+                          next[idx].unit = e.target.value;
+                          setWorkRows(next);
+                        }}
+                        placeholder="Unit"
+                        disabled={!canEdit}
+                      />
+                      <Select
+                        value={(w.status || undefined) as any}
+                        onValueChange={val => {
+                          const next = [...workRows];
+                          next[idx].status = val as any;
+                          setWorkRows(next);
+                        }}
+                        disabled={!canEdit}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WORK_STATUS.map(s => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {canEdit && workRows.length > 1 && (
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => setWorkRows(workRows.filter((_, i) => i !== idx))}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" /> Remove
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Materials used</CardTitle>
+                {canEdit && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setMaterialRows([...materialRows, emptyMaterialRow()])}>
+                    <Plus className="h-4 w-4 mr-1" /> Add Row
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {materialRows.length === 0 && <p className="text-sm text-muted-foreground">Optional — add rows if needed.</p>}
+                {materialRows.map((m, idx) => (
+                  <div key={idx} className="rounded-lg border border-border p-3 space-y-2">
+                    <Input
+                      value={m.material_name}
+                      onChange={e => {
+                        const next = [...materialRows];
+                        next[idx].material_name = e.target.value;
+                        setMaterialRows(next);
+                      }}
+                      placeholder="Material name"
+                      disabled={!canEdit}
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        value={m.quantity_used === null ? '' : String(m.quantity_used)}
+                        onChange={e => {
+                          const next = [...materialRows];
+                          next[idx].quantity_used = e.target.value === '' ? null : Number(e.target.value);
+                          setMaterialRows(next);
+                        }}
+                        placeholder="Qty used"
+                        disabled={!canEdit}
+                      />
+                      <Input
+                        value={m.unit}
+                        onChange={e => {
+                          const next = [...materialRows];
+                          next[idx].unit = e.target.value;
+                          setMaterialRows(next);
+                        }}
+                        placeholder="Unit"
+                        disabled={!canEdit}
+                      />
+                      <Input
+                        value={m.remaining_stock === null ? '' : String(m.remaining_stock)}
+                        onChange={e => {
+                          const next = [...materialRows];
+                          next[idx].remaining_stock = e.target.value === '' ? null : Number(e.target.value);
+                          setMaterialRows(next);
+                        }}
+                        placeholder="Remaining"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    {canEdit && (
+                      <div className="flex justify-end">
+                        <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setMaterialRows(materialRows.filter((_, i) => i !== idx))}>
+                          <Trash2 className="h-4 w-4 mr-1" /> Remove
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Issues</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <p className="label-meta">Issues faced</p>
+                  <Textarea value={issues} onChange={e => setIssues(e.target.value)} disabled={!canEdit} />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="label-meta">Safety observations</p>
+                  <Textarea value={safetyNotes} onChange={e => setSafetyNotes(e.target.value)} disabled={!canEdit} />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="label-meta">Visitor notes</p>
+                  <Textarea value={visitorNotes} onChange={e => setVisitorNotes(e.target.value)} disabled={!canEdit} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Tomorrow's plan</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Textarea value={tomorrowPlan} onChange={e => setTomorrowPlan(e.target.value)} disabled={!canEdit} />
+                <div className="space-y-1.5">
+                  <p className="label-meta">Expected workers</p>
+                  <Input value={expectedWorkers} onChange={e => setExpectedWorkers(e.target.value)} inputMode="numeric" disabled={!canEdit} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            <div className="flex flex-col gap-2 pb-6">
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setMode('list')} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={handleSaveDraft} disabled={saving || !canEdit}>
+                  <Save className="h-4 w-4 mr-2" /> Save Draft
+                </Button>
+              </div>
+              <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={handleSubmit} disabled={saving || !canEdit}>
+                {saving ? 'Saving…' : 'Submit Report'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+      </AppShell>
+    );
+  }
+
+  // === LIST ===
+  return (
+    <AppShell title="Daily" subtitle="Site progress reports">
+      <div className="flex justify-end gap-2 mb-3">
+        {reports.length > 0 && (
+          <Button variant="outline" size="sm" onClick={() => exportReportsToExcel(reports, siteMap)}>
+            <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Export Excel
+          </Button>
+        )}
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -433,152 +680,54 @@ export default function DailyProgressPage() {
         <div className="card-elevated flex flex-col items-center justify-center py-12">
           <ClipboardList className="h-10 w-10 text-muted-foreground mb-2" />
           <p className="text-muted-foreground">No reports yet</p>
-          {canCreate && <p className="text-xs text-muted-foreground mt-1">Tap + to add today's report</p>}
+          {canEdit && <p className="text-xs text-muted-foreground mt-1">Tap + to start today’s report</p>}
         </div>
       ) : (
         <div className="space-y-4">
           {reports.map(report => {
-            const mp = (report.manpower as ManpowerEntry[]) || [];
-            const mats = (report.materials_used as MaterialEntry[]) || [];
-            const workItems = (report.work_completed as WorkCompletedRow[]) || [];
-            const totalWorkers = mp.reduce((s, m) => s + m.count, 0);
-            const weatherObj = WEATHER_OPTIONS.find(w => w.value === report.weather);
-
+            const siteName = siteMap[report.site_id] || 'Unknown';
             return (
               <Card key={report.id}>
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-base">{getSiteName(report.site_id)}</CardTitle>
-                      <Badge variant={report.status === 'submitted' ? 'default' : 'secondary'} className="text-[10px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <CardTitle className="text-base truncate">{siteName}</CardTitle>
+                      <Badge variant={report.status === 'submitted' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
                         {report.status || 'draft'}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {canManage && (
-                        <>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditExisting(report)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(report)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportSingleReport(report, getSiteName(report.site_id), invMap)}>
-                            <Download className="h-3.5 w-3.5" />
-                          </Button>
-                        </>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openReadonly(report)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => exportSingleReport(report, siteName)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            hydrateFromReport(report);
+                            setMode('edit');
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                       )}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(report.report_date), 'dd MMM yyyy')}
-                      </span>
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(report)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {/* Site conditions */}
-                  {(report.weather || report.workers_count) && (
-                    <div className="flex flex-wrap gap-2">
-                      {weatherObj && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-xs">
-                          <weatherObj.icon className="h-3.5 w-3.5" /> {weatherObj.label}
-                        </span>
-                      )}
-                      {report.workers_count > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-xs">
-                          <Users className="h-3.5 w-3.5" /> {report.workers_count} workers
-                        </span>
-                      )}
-                      {report.work_hours && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-xs">
-                          {report.work_hours}h
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Work summary */}
-                  {report.work_description && (
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <ClipboardList className="h-3.5 w-3.5 text-accent" />
-                        <span className="label-meta">Summary</span>
-                      </div>
-                      <p className="text-sm text-foreground leading-relaxed">{report.work_description}</p>
-                    </div>
-                  )}
-
-                  {/* Work items */}
-                  {workItems.length > 0 && (
-                    <div>
-                      <span className="label-meta">Work Completed</span>
-                      <div className="space-y-1 mt-1">
-                        {workItems.map((w, i) => (
-                          <div key={i} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-1.5">
-                            <span className="text-xs text-foreground">{w.description} {w.location && `(${w.location})`}</span>
-                            <span className="text-xs font-medium tabular-nums text-muted-foreground">{w.percentage}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Manpower */}
-                  {mp.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Users className="h-3.5 w-3.5 text-accent" />
-                        <span className="label-meta">Manpower ({totalWorkers})</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {mp.map((m, i) => (
-                          <span key={i} className="inline-flex items-center rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
-                            {m.role}: {m.count}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Materials */}
-                  {mats.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Package className="h-3.5 w-3.5 text-accent" />
-                        <span className="label-meta">Materials Used</span>
-                      </div>
-                      <div className="space-y-1">
-                        {mats.map((m, i) => (
-                          <div key={i} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-1.5">
-                            <span className="text-xs text-foreground">{getItemName(m.inventory_id)}</span>
-                            <span className="text-xs font-medium tabular-nums text-muted-foreground">{m.qty_used} {m.unit}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Issues */}
-                  {report.issues?.trim() && (
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                        <span className="label-meta">Issues</span>
-                      </div>
-                      <p className="text-sm text-foreground">{report.issues}</p>
-                    </div>
-                  )}
-
-                  {/* Tomorrow */}
-                  {report.tomorrow_plan?.trim() && (
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <ArrowRight className="h-3.5 w-3.5 text-accent" />
-                        <span className="label-meta">Tomorrow's Plan</span>
-                      </div>
-                      <p className="text-sm text-foreground">{report.tomorrow_plan}</p>
-                    </div>
-                  )}
+                <CardContent className="text-sm text-muted-foreground">
+                  <p className="line-clamp-2">
+                    {report.tomorrow_plan?.trim() || report.issues?.trim() || (report.weather ? `Weather: ${report.weather}` : 'Daily report')}
+                  </p>
                 </CardContent>
               </Card>
             );
@@ -586,7 +735,7 @@ export default function DailyProgressPage() {
         </div>
       )}
 
-      {canCreate && <FAB onClick={handleNewReport} label="Report" />}
+      {canEdit && <FAB onClick={startNew} label="Report" />}
     </AppShell>
   );
 }

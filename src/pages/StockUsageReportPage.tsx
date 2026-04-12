@@ -1,8 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { AppShell } from '@/components/AppShell';
-import { useInventory, useSites } from '@/hooks/useSupabaseData';
+import { useInventory, useSites, useTasks, getInventoryMinimumThreshold } from '@/hooks/useSupabaseData';
 import { useAllMaterialUsage } from '@/hooks/useMaterialUsage';
-import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProfiles } from '@/hooks/useSupabaseData';
 import { format, startOfMonth, startOfWeek, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { Input } from '@/components/ui/input';
@@ -41,7 +40,7 @@ export default function StockUsageReportPage() {
   const { data: inventory = [] } = useInventory();
   const { data: sites = [] } = useSites();
   const { data: allUsage = [] } = useAllMaterialUsage();
-  const { data: dailyReports = [] } = useDailyReports();
+  const { data: tasks = [] } = useTasks();
   const { data: profiles = [] } = useProfiles();
 
   const [search, setSearch] = useState('');
@@ -81,18 +80,11 @@ export default function StockUsageReportPage() {
       const closingStock = Math.max(openingStock - record.qty_used, 0);
       stockTracker[item.id] = closingStock;
 
-      // Find linked daily report for purpose/work description
-      const linkedReport = dailyReports.find(dr => {
-        if (!dr.materials_used) return false;
-        const materials = dr.materials_used as any[];
-        return Array.isArray(materials) && materials.some(
-          (m: any) => m.inventory_id === record.inventory_id
-        ) && Math.abs(new Date(dr.created_at).getTime() - new Date(record.recorded_at).getTime()) < 86400000;
-      });
+      const task = tasks.find(t => t.id === record.task_id);
+      const siteName = task ? getSiteName(task.site_id) : '—';
+      const purpose = task?.title || task?.description || '—';
 
-      const siteName = linkedReport ? getSiteName(linkedReport.site_id) : '—';
-      const purpose = linkedReport?.work_description || '—';
-
+      const minThreshold = getInventoryMinimumThreshold(item);
       rows.push({
         date: record.recorded_at,
         siteName,
@@ -104,15 +96,15 @@ export default function StockUsageReportPage() {
         unit: item.unit,
         usedBy: getProfileName(record.recorded_by),
         purpose,
-        remarks: closingStock < item.min_stock_level ? 'Low stock' : '',
-        isBelowMin: closingStock < item.min_stock_level,
+        remarks: closingStock < minThreshold ? 'Low stock' : '',
+        isBelowMin: closingStock < minThreshold,
         inventoryId: item.id,
       });
     }
 
     // Return in reverse chronological order for display
     return rows.reverse();
-  }, [allUsage, inventory, dailyReports, profiles, sites, getProfileName, getSiteName]);
+  }, [allUsage, inventory, tasks, profiles, sites, getProfileName, getSiteName]);
 
   // Filter options
   const categories = useMemo(() => {

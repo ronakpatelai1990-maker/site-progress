@@ -14,9 +14,10 @@ interface EditSiteDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDeleted?: () => void;
+  canDelete?: boolean;
 }
 
-export function EditSiteDrawer({ site, profiles, open, onOpenChange, onDeleted }: EditSiteDrawerProps) {
+export function EditSiteDrawer({ site, profiles, open, onOpenChange, onDeleted, canDelete = true }: EditSiteDrawerProps) {
   const updateSite = useUpdateSite();
   const deleteSite = useDeleteSite();
   const [name, setName] = useState('');
@@ -99,9 +100,11 @@ export function EditSiteDrawer({ site, profiles, open, onOpenChange, onDeleted }
                   {updateSite.isPending ? 'Saving...' : 'Save'}
                 </Button>
               </div>
-              <Button variant="ghost" className="min-h-[48px] w-full text-destructive" onClick={() => setShowDeleteConfirm(true)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete Site
-              </Button>
+              {canDelete && (
+                <Button variant="ghost" className="min-h-[48px] w-full text-destructive" onClick={() => setShowDeleteConfirm(true)}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Site
+                </Button>
+              )}
             </div>
           )}
         </div>

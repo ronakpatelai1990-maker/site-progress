@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { useAuth } from '@/hooks/useAuth';
-import { useSites, useTasks, useInventory, getLowStockItems } from '@/hooks/useSupabaseData';
-import { Navigate } from 'react-router-dom';
+import { useSites, useTasks, useInventory, getLowStockItems, getInventoryMinimumThreshold } from '@/hooks/useSupabaseData';
+import { hasPermission } from '@/lib/roles';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
@@ -30,7 +30,7 @@ const PRESET_RANGES = [
 ] as const;
 
 export default function ReportsPage() {
-  const { role } = useAuth();
+  const { appRole } = useAuth();
   const { data: sites = [] } = useSites();
   const { data: tasks = [] } = useTasks();
   const { data: inventory = [] } = useInventory();
@@ -91,7 +91,7 @@ export default function ReportsPage() {
         name: item.item_name.length > 10 ? item.item_name.slice(0, 10) + '…' : item.item_name,
         available: item.available_qty,
         used: item.total_qty - item.available_qty,
-        min: item.min_stock_level,
+        min: getInventoryMinimumThreshold(item),
         fullName: item.item_name,
       }));
   }, [inventory]);
@@ -109,7 +109,7 @@ export default function ReportsPage() {
     used: { label: 'Used', color: 'hsl(var(--muted-foreground))' },
   };
 
-  if (role !== 'admin') return <Navigate to="/" replace />;
+  if (!hasPermission(appRole, 'view:reports')) return null;
 
   const hasFilter = dateFrom || dateTo;
 
@@ -295,7 +295,7 @@ export default function ReportsPage() {
                 <div key={item.id} className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2">
                   <div>
                     <p className="text-sm font-medium text-foreground">{item.item_name}</p>
-                    <p className="text-xs text-muted-foreground">Min: {item.min_stock_level} {item.unit}</p>
+                    <p className="text-xs text-muted-foreground">Min: {getInventoryMinimumThreshold(item)} {item.unit}</p>
                   </div>
                   <p className="text-sm font-bold tabular-nums text-destructive">{item.available_qty} {item.unit}</p>
                 </div>
