@@ -1,85 +1,82 @@
 import * as XLSX from 'xlsx';
-import type { DailyReport, WorkCompletedRow } from '@/hooks/useDailyReports';
+import type { DailyReport, DailyReportMaterialRow, DailyReportWorkRow } from '@/hooks/useDailyReports';
 
-interface SiteMap { [id: string]: string }
-interface InvMap { [id: string]: string }
+interface SiteMap {
+  [id: string]: string;
+}
 
-export function exportReportsToExcel(
-  reports: DailyReport[],
-  siteNames: SiteMap,
-  invNames: InvMap,
-  filename = 'daily-reports.xlsx'
-) {
+export function exportReportsToExcel(reports: DailyReport[], siteNames: SiteMap, filename = 'daily-reports.xlsx') {
   const wb = XLSX.utils.book_new();
 
-  // Summary sheet
   const summaryRows = reports.map(r => ({
     Date: r.report_date,
     Site: siteNames[r.site_id] || r.site_id,
     Weather: r.weather || '',
-    Workers: r.workers_count || 0,
-    'Work Hours': r.work_hours || 8,
+    Temperature: r.temperature ?? '',
+    'Work Start': r.work_start_time || '',
+    'Work End': r.work_end_time || '',
+    'Total Workers': r.total_workers ?? '',
     Status: r.status || 'draft',
-    'Work Description': r.work_description || '',
-    Issues: r.issues || '',
-    "Tomorrow's Plan": r.tomorrow_plan || '',
+    'Submitted By': r.submitted_by_name || '',
+    'Tomorrow Plan': r.tomorrow_plan || '',
+    'Expected Workers': r.expected_workers ?? '',
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
 
-  // Work Completed sheet
   const workRows: any[] = [];
   reports.forEach(r => {
-    const items = (r.work_completed as WorkCompletedRow[]) || [];
+    const items = (r.work_rows || []) as DailyReportWorkRow[];
     items.forEach(w => {
       workRows.push({
         Date: r.report_date,
         Site: siteNames[r.site_id] || r.site_id,
         Description: w.description,
         Location: w.location,
-        '% Complete': w.percentage,
+        Quantity: w.quantity ?? '',
+        Unit: w.unit,
+        Status: w.status,
+        'Assigned To': w.assigned_to,
       });
     });
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(workRows.length ? workRows : [{ Note: 'No work entries' }]), 'Work Completed');
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(workRows.length ? workRows : [{ Note: 'No work entries' }]),
+    'Work Completed'
+  );
 
-  // Materials Used sheet
   const matRows: any[] = [];
   reports.forEach(r => {
-    const mats = (r.materials_used as { inventory_id: string; qty_used: number; unit: string }[]) || [];
+    const mats = (r.material_rows || []) as DailyReportMaterialRow[];
     mats.forEach(m => {
       matRows.push({
         Date: r.report_date,
         Site: siteNames[r.site_id] || r.site_id,
-        Item: invNames[m.inventory_id] || m.inventory_id,
-        'Qty Used': m.qty_used,
+        Material: m.material_name,
+        'Qty Used': m.quantity_used ?? '',
         Unit: m.unit,
+        'Remaining Stock': m.remaining_stock ?? '',
       });
     });
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(matRows.length ? matRows : [{ Note: 'No materials used' }]), 'Materials Used');
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(matRows.length ? matRows : [{ Note: 'No materials used' }]),
+    'Materials Used'
+  );
 
-  // Issues sheet
-  const issueRows = reports
-    .filter(r => r.issues?.trim())
-    .map(r => ({
-      Date: r.report_date,
-      Site: siteNames[r.site_id] || r.site_id,
-      Issues: r.issues,
-    }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(issueRows.length ? issueRows : [{ Note: 'No issues reported' }]), 'Issues');
+  const issueRows = reports.map(r => ({
+    Date: r.report_date,
+    Site: siteNames[r.site_id] || r.site_id,
+    Issues: r.issues || '',
+    'Safety Observations': r.safety_notes || '',
+    'Visitor Notes': r.visitor_notes || '',
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(issueRows.length ? issueRows : [{ Note: 'No issues' }]), 'Issues');
 
   XLSX.writeFile(wb, filename);
 }
 
-export function exportSingleReport(
-  report: DailyReport,
-  siteName: string,
-  invNames: InvMap
-) {
-  exportReportsToExcel(
-    [report],
-    { [report.site_id]: siteName },
-    invNames,
-    `report-${siteName.replace(/\s+/g, '-')}-${report.report_date}.xlsx`
-  );
+export function exportSingleReport(report: DailyReport, siteName: string) {
+  exportReportsToExcel([report], { [report.site_id]: siteName }, `report-${siteName.replace(/\s+/g, '-')}-${report.report_date}.xlsx`);
 }

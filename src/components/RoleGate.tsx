@@ -1,17 +1,29 @@
 import { ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import type { Enums } from '@/integrations/supabase/types';
+import type { AppUserRole, Permission } from '@/lib/roles';
+import { hasPermission } from '@/lib/roles';
 
-type AppRole = Enums<'app_role'>;
+type RoleGateProps =
+  | {
+      allowedRoles: AppUserRole[];
+      requiredPermission?: never;
+      children: ReactNode;
+      fallback?: ReactNode;
+    }
+  | {
+      allowedRoles?: never;
+      requiredPermission: Permission;
+      children: ReactNode;
+      fallback?: ReactNode;
+    };
 
-interface RoleGateProps {
-  allowedRoles: AppRole[];
-  children: ReactNode;
-  fallback?: ReactNode;
-}
+export function RoleGate({ allowedRoles, requiredPermission, children, fallback = null }: RoleGateProps) {
+  const { appRole } = useAuth();
 
-export function RoleGate({ allowedRoles, children, fallback = null }: RoleGateProps) {
-  const { role } = useAuth();
-  if (!role || !allowedRoles.includes(role)) return <>{fallback}</>;
+  if (!appRole) return <>{fallback}</>;
+  // Deny-by-default if misconfigured.
+  if (!allowedRoles && !requiredPermission) return <>{fallback}</>;
+  if (requiredPermission && !hasPermission(appRole, requiredPermission)) return <>{fallback}</>;
+  if (allowedRoles && !allowedRoles.includes(appRole)) return <>{fallback}</>;
   return <>{children}</>;
 }

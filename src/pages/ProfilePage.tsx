@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/roles';
 import { useProfiles } from '@/hooks/useSupabaseData';
 import { useUserRoles, getRoleForUser } from '@/hooks/useUserRoles';
 import { EditEmployeeDrawer } from '@/components/EditEmployeeDrawer';
@@ -24,7 +25,7 @@ const roleBadgeClass: Record<AppRole, string> = {
 };
 
 export default function ProfilePage() {
-  const { profile, role, signOut } = useAuth();
+  const { profile, role, signOut, appRole } = useAuth();
   const { data: profiles = [] } = useProfiles();
   const { data: userRoles = [] } = useUserRoles();
   const queryClient = useQueryClient();
@@ -35,6 +36,7 @@ export default function ProfilePage() {
 
   const isAdmin = role === 'admin';
   const canManageTeam = isAdmin || !!(profile as any)?.can_edit;
+  const showTeamSection = hasPermission(appRole, 'view:team');
   const roleLabel = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'User';
 
   const handleEditEmployee = (emp: Profile) => {
@@ -99,7 +101,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Team list — visible to admins, engineers, and editors */}
-      {(role !== 'supervisor' || canManageTeam) && (
+      {showTeamSection && (role !== 'supervisor' || canManageTeam) && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="label-meta">

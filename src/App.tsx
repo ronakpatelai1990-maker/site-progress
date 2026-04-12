@@ -1,14 +1,16 @@
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { canAccessRoute } from "@/lib/roles";
+import { toast } from "sonner";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const SitesPage = lazy(() => import("./pages/SitesPage"));
@@ -49,11 +51,28 @@ function PageLoader() {
   );
 }
 
+function RouteAccess({ children }: { children: React.ReactNode }) {
+  const { appRole } = useAuth();
+  const location = useLocation();
+
+  const allowed = canAccessRoute(appRole, location.pathname);
+  useEffect(() => {
+    if (!allowed) toast.error("You don't have permission to view this page");
+  }, [allowed, location.pathname]);
+
+  if (!allowed) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/auth" replace />;
-  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <RouteAccess>{children}</RouteAccess>
+    </Suspense>
+  );
 }
 
 function AppRoutes() {

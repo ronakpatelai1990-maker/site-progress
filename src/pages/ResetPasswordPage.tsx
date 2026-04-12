@@ -33,8 +33,8 @@ export default function ResetPasswordPage() {
       toast.error('Passwords do not match');
       return;
     }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
     setLoading(true);
@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Password updated successfully');
+      toast.success('Password updated');
       navigate('/');
     }
     setLoading(false);
@@ -75,7 +75,7 @@ export default function ResetPasswordPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="min-h-[52px] rounded-xl pt-5 pb-2"
               id="new-password"
             />
@@ -90,7 +90,7 @@ export default function ResetPasswordPage() {
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="min-h-[52px] rounded-xl pt-5 pb-2"
               id="confirm-password"
             />

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle, ChevronRight } from 'lucide-react';
 import type { InventoryItem } from '@/hooks/useSupabaseData';
+import { getInventoryMinimumThreshold } from '@/hooks/useSupabaseData';
 import { UsageSparkline } from './UsageSparkline';
 
 interface StockCardProps {
@@ -12,7 +13,8 @@ interface StockCardProps {
 }
 
 export function StockCard({ item, onClick, usedToday = 0, usedThisWeek = 0, last7Days = [] }: StockCardProps) {
-  const isLow = item.available_qty < item.min_stock_level;
+  const minThreshold = getInventoryMinimumThreshold(item);
+  const isLow = item.available_qty < minThreshold;
   const isOut = item.available_qty <= 0;
   const percentage = item.total_qty > 0 ? Math.round((item.available_qty / item.total_qty) * 100) : 0;
 
@@ -75,7 +77,7 @@ export function StockCard({ item, onClick, usedToday = 0, usedThisWeek = 0, last
         />
       </div>
       <div className="mt-1.5 flex justify-between">
-        <span className="text-xs text-muted-foreground">Min: {item.min_stock_level} {item.unit}</span>
+        <span className="text-xs text-muted-foreground">Min: {minThreshold} {item.unit}</span>
         <div className="flex items-center gap-1">
           <span className="text-xs font-medium text-muted-foreground">{percentage}%</span>
           {onClick && <ChevronRight className="h-3 w-3 text-muted-foreground" />}

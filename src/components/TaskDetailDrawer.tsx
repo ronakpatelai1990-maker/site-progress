@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer';
 import { StatusBadge } from './StatusBadge';
 import { Stepper } from './Stepper';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpdateTaskStatus, useRecordMaterialUsage, useUpdateTask, useDeleteTask } from '@/hooks/useSupabaseData';
 import type { Task, Site, Profile, InventoryItem } from '@/hooks/useSupabaseData';
+import { hasPermission } from '@/lib/roles';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -23,7 +24,7 @@ interface TaskDetailDrawerProps {
 }
 
 export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpenChange }: TaskDetailDrawerProps) {
-  const { user, role } = useAuth();
+  const { user, role, appRole } = useAuth();
   const updateStatus = useUpdateTaskStatus();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -38,13 +39,18 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
   const [editAssignedTo, setEditAssignedTo] = useState('');
   const [editSiteId, setEditSiteId] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [remarkDraft, setRemarkDraft] = useState('');
 
   if (!task) return null;
 
   const site = sites.find(s => s.id === task.site_id);
   const assignee = profiles.find(p => p.user_id === task.assigned_to);
   const selectedInventory = inventory.find(i => i.id === selectedItem);
-  const canEdit = role === 'admin' || role === 'engineer';
+  const isContractorUser = appRole === 'Contractor' || role === 'contractor';
+  const canEditTaskFields = hasPermission(appRole, 'edit:tasks') && appRole !== 'Contractor';
+  const canDeleteTask = hasPermission(appRole, 'delete:tasks');
+  const canRecordMaterials = hasPermission(appRole, 'edit:stock');
+  const canCommentTask = !isContractorUser && hasPermission(appRole, 'comment:tasks');
 
   const startEditing = () => {
     setEditTitle(task.title);
@@ -89,11 +95,8 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
     );
   };
 
-  const isContractor = role === 'contractor';
-
   const handleStatusChange = (newStatus: 'pending' | 'in_progress' | 'completed') => {
-    // Contractors can only set pending or completed
-    if (isContractor && newStatus === 'in_progress') return;
+    if (isContractorUser && newStatus === 'pending') return;
     updateStatus.mutate(
       { taskId: task.id, status: newStatus },
       {
@@ -104,7 +107,18 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
   };
 
   return (
-    <Drawer open={open} onOpenChange={(o) => { if (!o) { setIsEditing(false); setShowDeleteConfirm(false); } onOpenChange(o); }}>
+    <Drawer
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setIsEditing(false);
+          setShowDeleteConfirm(false);
+          setShowMaterialForm(false);
+          setRemarkDraft('');
+        }
+        onOpenChange(o);
+      }}
+    >
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="text-left">
           <div className="flex items-start justify-between">
@@ -112,14 +126,16 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
               <DrawerTitle className="text-lg">{task.title}</DrawerTitle>
               <div className="mt-2"><StatusBadge status={task.status} /></div>
             </div>
-            {canEdit && !isEditing && (
+            {canEditTaskFields && !isEditing && (
               <div className="flex gap-1">
                 <motion.button whileTap={{ scale: 0.9 }} onClick={startEditing} className="touch-target rounded-lg bg-secondary text-secondary-foreground">
                   <Pencil className="h-4 w-4" />
                 </motion.button>
-                <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowDeleteConfirm(true)} className="touch-target rounded-lg bg-destructive/10 text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                </motion.button>
+                {canDeleteTask && (
+                  <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowDeleteConfirm(true)} className="touch-target rounded-lg bg-destructive/10 text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </motion.button>
+                )}
               </div>
             )}
           </div>
@@ -200,7 +216,7 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
                 <p className="label-meta mb-2">Update Status</p>
                 <div className="grid grid-cols-3 gap-2">
                   {(['pending', 'in_progress', 'completed'] as const)
-                    .filter(status => !isContractor || status !== 'in_progress')
+                    .filter(status => !isContractorUser || status !== 'pending')
                     .map(status => (
                     <motion.button
                       key={status}
@@ -216,8 +232,44 @@ export function TaskDetailDrawer({ task, sites, profiles, inventory, open, onOpe
                 </div>
               </div>
 
+              {canCommentTask && (
+                <div className="mt-6 space-y-2">
+                  <p className="label-meta">Remarks / comments</p>
+                  <Textarea
+                    rows={3}
+                    value={remarkDraft || task.remarks || ''}
+                    onChange={e => setRemarkDraft(e.target.value)}
+                    placeholder="Add a remark…"
+                  />
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    onClick={() => {
+                      const next = (remarkDraft || '').trim();
+                      if (!next) {
+                        toast.error('Write a remark first');
+                        return;
+                      }
+                      updateTask.mutate(
+                        { id: task.id, remarks: next },
+                        {
+                          onSuccess: () => {
+                            toast.success('Remark saved');
+                            setRemarkDraft('');
+                          },
+                          onError: err => toast.error(err.message),
+                        }
+                      );
+                    }}
+                    disabled={updateTask.isPending}
+                  >
+                    Save remark
+                  </Button>
+                </div>
+              )}
+
               <div className="mt-6">
-                {!showMaterialForm ? (
+                {!canRecordMaterials ? null : !showMaterialForm ? (
                   <motion.button
                     whileTap={{ scale: 0.96 }}
                     onClick={() => setShowMaterialForm(true)}

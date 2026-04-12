@@ -5,7 +5,7 @@ import { CreateInventoryDrawer } from '@/components/CreateInventoryDrawer';
 import { EditInventoryDrawer } from '@/components/EditInventoryDrawer';
 import { ChallanScannerDrawer } from '@/components/ChallanScannerDrawer';
 import { MaterialUsageHistory } from '@/components/MaterialUsageHistory';
-import { useAuth } from '@/hooks/useAuth';
+import { useCanEdit } from '@/hooks/useUserRole';
 import { useInventory, useSites, getLowStockItems, InventoryItem } from '@/hooks/useSupabaseData';
 import { useAllMaterialUsage, computeUsageStats } from '@/hooks/useMaterialUsage';
 import { useState, useMemo } from 'react';
@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 type Filter = 'all' | 'low';
 
 export default function InventoryPage() {
-  const { role } = useAuth();
+  const canEdit = useCanEdit();
   const { data: inventory = [] } = useInventory();
   const { data: sites = [] } = useSites();
   const { data: allUsage = [] } = useAllMaterialUsage();
@@ -73,7 +73,7 @@ export default function InventoryPage() {
     return result;
   }, [inventory, lowStockItems, filter, siteFilter, categoryFilter, search]);
 
-  const canManage = role === 'admin';
+  const canManage = canEdit;
 
   return (
     <AppShell
